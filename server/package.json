@@ -1,0 +1,35 @@
+{
+  "name": "medical-practice-booking-api",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/index.mjs",
+    "start": "node src/index.mjs",
+    "worker": "node src/worker.mjs",
+    "auth:worker": "node src/auth/worker.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "seed": "node scripts/seed.mjs",
+    "staff-scope": "node scripts/staff-scope.mjs",
+    "test": "node --env-file=.env.test --test --test-concurrency=1 tests/*.test.mjs",
+    "dev:all": "node scripts/run-local.mjs",
+    "dev:al": "npm run dev:all"
+  },
+  "dependencies": {
+    "argon2": "^0.41.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "google-auth-library": "^9.15.1",
+    "helmet": "^8.0.0",
+    "ipaddr.js": "^2.2.0",
+    "jose": "^6.0.0",
+    "luxon": "^3.6.0",
+    "mysql2": "^3.14.0",
+    "nodemailer": "^7.0.0",
+    "zod": "^3.24.0"
+  }
+}

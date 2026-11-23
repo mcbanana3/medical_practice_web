@@ -1,0 +1,113 @@
+import { practice } from "./content.js";
+export const ph = () => "";
+
+export const emergency =
+  "This website and appointment requests are not monitored for emergencies. " +
+  "If you are experiencing a medical emergency, call 911.";
+
+
+export const site = {
+  publicationReady: false,
+  verified: false,
+  url: (import.meta.env?.VITE_SITE_URL || "").trim().replace(/\/+$/, ""),
+  name: practice.name,
+  specialty: practice.specialty,
+  clinician: practice.clinician,
+  address: practice.address,
+  phone: practice.phone,
+  hours: practice.hours,
+  timeZone: practice.timeZone,
+  map: practice.map,
+  notices: {
+    privacyPractices: false,
+    nondiscrimination: false,
+    languageAssistance: false
+  },
+  structuredData: null
+};
+
+export const pages = [
+  ["/", "Home"],
+  ["/about", "About the practice"],
+  ["/care", "Care"],
+  ["/reviews", "Reviews"],
+  ["/care/content-preview", "Service detail preview", true],
+  ["/new-patients", "New patients"],
+  ["/insurance-fees", "Insurance and fees"],
+  ["/contact", "Locations and contact"],
+  ["/emergency", "Emergency and urgent information"],
+  ["/request-an-appointment", "Request an appointment"],
+  ["/request-an-appointment/received", "Appointment request receipt", true],
+  ["/manage-request", "Manage appointment request", true],
+  ["/portal", "Patient portal", true],
+  ["/portal/login", "Patient sign in", true],
+  ["/portal/register", "Create an account", true],
+  ["/portal/recovery", "Account recovery", true],
+  ["/portal/verify", "Email verification", true],
+  ["/portal/appointments", "Appointments and request history", true],
+  ["/portal/profile", "Patient profile", true],
+  ["/portal/account", "Account and security", true],
+  ["/portal/link", "Link a guest request", true],
+  ["/staff/login", "Staff sign in", true],
+  ["/privacy", "Website Privacy Notice"],
+  ["/privacy-practices", "Notice of Privacy Practices", false, "privacyPractices"],
+  ["/terms", "Website Terms"],
+  ["/accessibility", "Accessibility"],
+  ["/nondiscrimination", "Notice of Non-Discrimination", false, "nondiscrimination"],
+  ["/language-assistance", "Language assistance", false, "languageAssistance"],
+  ["/preview/states", "Interface state previews", true]
+].map(([path, title, sensitive = false, conditional]) => ({
+  path, title, sensitive, conditional
+}));
+
+export function validSiteUrl() {
+  try {
+    const url = new URL(site.url);
+    return url.protocol === "https:" && url.pathname === "/" && !url.search && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
+export function getSeo(path) {
+  let page = pages.find((entry) => entry.path === path);
+
+  if (!page && /^\/portal\/appointments\/[a-f0-9]{32}$/.test(path)) {
+    page = { title: "Appointment request detail", sensitive: true };
+  }
+
+  const applicable = !page?.conditional || site.notices[page.conditional];
+  const indexable = Boolean(
+    page && site.publicationReady && !page.sensitive && applicable
+  );
+
+  return {
+    title: `${page?.title || "Page not found"} | ${site.name}`,
+    description: page?.sensitive
+      ? "Secure patient account access."
+      : page ? `${page.title}: practice information and patient guidance.`
+        : "The requested page is unavailable.",
+    robots: indexable ? "index,follow" : "noindex,nofollow",
+    canonical: page && !page.sensitive && validSiteUrl()
+      ? new URL(path, `${site.url}/`).href : ""
+  };
+}
+
+export function sitemapPages() {
+  if (!site.publicationReady || !validSiteUrl()) return [];
+  return pages.filter((page) =>
+    !page.sensitive && (!page.conditional || site.notices[page.conditional])
+  );
+}
+
+export function approvedSchema() {
+  if (!site.publicationReady || !site.verified || !site.structuredData) return null;
+  return JSON.stringify(site.structuredData).includes("[PLACEHOLDER:")
+    ? null : site.structuredData;
+}
+
+export function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[character]);
+}

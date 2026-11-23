@@ -1,0 +1,74 @@
+.patient-details {
+  max-width: 960px;
+}
+
+.patient-details fieldset:not(.time-fieldset) {
+  min-width: 0;
+  margin: 24px 0;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid #cbd2e6;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.patient-details legend {
+  padding: 0 10px;
+  color: #172350;
+  font-weight: 700;
+}
+
+.patient-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+}
+
+.patient-details input:not([type="checkbox"]):not([type="radio"]),
+.patient-details textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.patient-details textarea {
+  padding: 14px;
+  border: 1px solid #73857d;
+  border-radius: 10px;
+  color: #26342f;
+  background: #fff;
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.patient-details textarea:focus-visible {
+  outline: 3px solid #253db8;
+  outline-offset: 3px;
+}
+
+.patient-action-panel {
+  margin: 28px 0;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid #c8bff0;
+  border-radius: 18px;
+  background: #f6f3ff;
+}
+
+.patient-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.patient-check input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 3px;
+}
+
+@media (max-width: 700px) {
+  .patient-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
