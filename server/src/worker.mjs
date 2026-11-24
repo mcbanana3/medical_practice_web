@@ -1,27 +1,44 @@
 import { setTimeout as wait } from "node:timers/promises";
 import { pool } from "./db.mjs";
 import { expireHolds } from "./requests.mjs";
-import {
-  createMailTransport, deliverOne
-} from "./notifications.mjs";
+import { createMailTransport, deliverOne } from "./notifications.mjs";
+import { deliverCommunication } from "./staff/mail.mjs";
 
-const transport = createMailTransport();
 let stopping = false;
+const sleep = new AbortController();
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, () => { stopping = true; });
+  process.on(signal, () => {
+    stopping = true;
+    sleep.abort();
+  });
 }
 
-while (!stopping) {
-  try {
-    await expireHolds();
-    await deliverOne(transport);
-  } catch {
-    console.error("WORKER_OPERATION_FAILED");
+const transport = createMailTransport();
+
+try {
+  while (!stopping) {
+    for (const task of [
+      expireHolds,
+      () => deliverOne(transport),
+      () => deliverCommunication(transport)
+    ]) {
+      if (stopping) break;
+      try {
+        await task();
+      } catch {
+        console.error("BOOKING_WORKER_OPERATION_FAILED");
+      }
+    }
+
+    if (!stopping) {
+      await wait(1000, undefined, { signal: sleep.signal })
+        .catch(error => {
+          if (error.name !== "AbortError") throw error;
+        });
+    }
   }
-
-  await wait(1000);
+} finally {
+  transport.close?.();
+  await pool.end();
 }
-
-transport.close();
-await pool.end();

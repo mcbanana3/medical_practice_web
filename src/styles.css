@@ -50,6 +50,83 @@ main:focus, .booking-main > h2:focus { outline: none; }
 .button--primary:focus-visible { outline-color: var(--green); }
 .appointment-cta :focus-visible { outline-color: white; }
 
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brand-icon {
+  display: block;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+
+.abstract-art {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #e8e5df;
+}
+
+.abstract-art__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.abstract-art__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.45),
+    transparent 55%
+  );
+}
+
+.art-label {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  color: white;
+  z-index: 2;
+  gap: 6px;
+}
+
+.art-label span:first-child {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.art-label span:last-child {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.abstract-art--compact {
+  height: 220px;
+}
+
 .container { width: min(1200px, calc(100% - 80px)); margin-inline: auto; }
 .section { padding-block: 96px; }
 .section-tight { padding-top: 40px; }

@@ -1,5 +1,4 @@
 import ipaddr from "ipaddr.js";
-import { createRemoteJWKSet, jwtVerify } from "jose";
 import { config } from "./config.mjs";
 import { digest, query, SafeError } from "./db.mjs";
 
@@ -47,40 +46,10 @@ export async function verifyCaptcha(token, fetchImplementation = fetch) {
   }
 }
 
-const jwks = config.oidcJwks
-  ? createRemoteJWKSet(new URL(config.oidcJwks))
-  : null;
-
-export async function verifyStaff(request) {
-  if (!jwks) {
-    throw new SafeError(
-      503, "STAFF_AUTH_NOT_CONFIGURED",
-      "Staff authentication is not configured."
-    );
-  }
-
-  const authorization = request.get("authorization") || "";
-
-  if (!authorization.startsWith("Bearer ")) {
-    throw new SafeError(401, "AUTH_REQUIRED", "Staff authentication is required.");
-  }
-
-  try {
-    const { payload } = await jwtVerify(authorization.slice(7), jwks, {
-      issuer: config.oidcIssuer,
-      audience: config.oidcAudience,
-      algorithms: ["RS256", "ES256"],
-      requiredClaims: ["sub", "iat", "exp"]
-    });
-
-    if (typeof payload.sub !== "string" || payload.sub.length > 255) {
-      throw new Error("Invalid subject");
-    }
-
-    return payload;
-  } catch {
-    throw new SafeError(401, "AUTH_REQUIRED", "Staff authentication is required.");
-  }
+export async function verifyStaff() {
+  throw new SafeError(
+    401, "STAFF_SESSION_REQUIRED", "Use the staff sign-in page."
+  );
 }
 
 export function requireStaff(scope, verifier = verifyStaff) {

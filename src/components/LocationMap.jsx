@@ -1,7 +1,8 @@
+
 import { useEffect, useState } from "react";
 import Button from "./Button.jsx";
 import Icon from "./Icon.jsx";
-import { site } from "../site.js";
+import { practice } from "../content.js";
 
 function googleUrl(value, embedded = false) {
   try {
@@ -13,18 +14,14 @@ function googleUrl(value, embedded = false) {
     ].includes(url.hostname);
 
     const allowedPath = embedded
-      ? (
-          url.pathname === "/maps/embed" ||
-          url.pathname.startsWith("/maps/embed/")
-        )
-      : (
-          url.pathname === "/maps" ||
-          url.pathname.startsWith("/maps/")
-        );
+      ? url.pathname.startsWith("/maps/embed")
+      : url.pathname.startsWith("/maps/");
 
-    return url.protocol === "https:" && allowedHost && allowedPath
-      ? url.href
-      : "";
+    return url.protocol === "https:" &&
+      allowedHost &&
+      allowedPath
+        ? url.href
+        : "";
   } catch {
     return "";
   }
@@ -35,32 +32,37 @@ export default function LocationMap() {
   const [loaded, setLoaded] = useState(false);
   const [delayed, setDelayed] = useState(false);
 
-  const embedUrl = googleUrl(site.map.embedUrl, true);
-  const directionsUrl = googleUrl(site.map.directionsUrl);
+  const embedUrl = googleUrl(practice.map?.embedUrl, true);
+  const directionsUrl = googleUrl(practice.map?.directionsUrl);
 
   const verifiedAddress =
-    Boolean(site.address.trim()) &&
-    !site.address.includes("[PLACEHOLDER:");
+    Boolean(practice.address?.trim());
 
   const configured =
-    site.map.verified &&
+    practice.map?.verified === true &&
     verifiedAddress &&
     Boolean(embedUrl);
 
   useEffect(() => {
     if (!open || loaded) return undefined;
 
-    const timer = window.setTimeout(() => setDelayed(true), 12000);
+    const timer = window.setTimeout(
+      () => setDelayed(true),
+      12000
+    );
 
     return () => window.clearTimeout(timer);
   }, [open, loaded]);
 
   return (
-    <section className="google-map-panel" aria-label="Practice location map">
+    <section
+      className="google-map-panel"
+      aria-label="Practice location map"
+    >
       {open && configured ? (
         <div className="google-map-frame">
           <iframe
-            title={`Google Maps location: ${site.address}`}
+            title={`Google Maps location: ${practice.address}`}
             src={embedUrl}
             loading="lazy"
             allowFullScreen
@@ -70,22 +72,31 @@ export default function LocationMap() {
         </div>
       ) : (
         <div className="google-map-cover">
-          <div className="map-cover-lines" aria-hidden="true" />
-          <span className="map-cover-pin" aria-hidden="true">
+          <div
+            className="map-cover-lines"
+            aria-hidden="true"
+          />
+
+          <span
+            className="map-cover-pin"
+            aria-hidden="true"
+          >
             <Icon name="pin" />
           </span>
 
           <div className="map-cover-copy">
             <p className="eyebrow">Find the practice</p>
+
             <h3>
               {configured
                 ? "Explore the location."
-                : "Map awaiting a verified location."}
+                : "Our Odessa practice location."}
             </h3>
+
             <p>
               {configured
-                ? "Load the interactive Google map when you are ready."
-                : "[PLACEHOLDER: verified practice location and Google Maps embed]"}
+                ? "Load the interactive Google map to explore the location."
+                : "The interactive map will be available after location verification."}
             </p>
           </div>
         </div>
@@ -93,12 +104,19 @@ export default function LocationMap() {
 
       <div className="google-map-details">
         <p className="small-label">Practice address</p>
-        <p className="map-address">{site.address}</p>
-        <p>{site.map.arrivalDirections}</p>
+
+        <p className="map-address">
+          {practice.address}
+        </p>
+
+        {practice.map?.arrivalDirections && (
+          <p>{practice.map.arrivalDirections}</p>
+        )}
 
         <p className="help">
-          Loading the map connects your browser to Google. The address and
-          written directions remain available without loading it.
+          Loading the map connects your browser to Google.
+          Written location details remain available without
+          loading the interactive map.
         </p>
 
         <div className="button-row">
@@ -121,17 +139,17 @@ export default function LocationMap() {
               ? "Hide Google Maps"
               : configured
                 ? "Load Google Maps"
-                : "Map not configured"}
+                : "Map awaiting verification"}
           </Button>
 
-          {site.map.verified && verifiedAddress && directionsUrl && (
+          {configured && directionsUrl && (
             <a
               className="inline-link"
               href={directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Open directions — new tab <Icon />
+              Get directions <Icon />
             </a>
           )}
         </div>
@@ -140,8 +158,8 @@ export default function LocationMap() {
           {open && !loaded && (
             <p>
               {delayed
-                ? "The map has not finished loading. Use the written address or directions instead."
-                : "Loading Google Maps. Written location details remain available."}
+                ? "The map is taking longer than expected to load. You can use the written address instead."
+                : "Loading Google Maps..."}
             </p>
           )}
         </div>

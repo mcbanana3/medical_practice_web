@@ -1,18 +1,27 @@
-export default function AbstractArt({ compact = false }) {
+
+export default function AbstractArt({
+  compact = false,
+  image = "/potrait.png"
+}) {
   return (
     <div
-      className={`abstract-art ${compact ? "abstract-art--compact" : ""}`}
+      className={`abstract-art ${
+        compact ? "abstract-art--compact" : ""
+      }`}
       aria-hidden="true"
     >
-      <div className="art-orbit" />
-      <div className="art-sun" />
-      <div className="art-arch arch-one" />
-      <div className="art-arch arch-two" />
-      <div className="art-arch arch-three" />
-      <div className="art-platform" />
+      <img
+        className="abstract-art__image"
+        src={image}
+        alt=""
+        loading="lazy"
+      />
+
+      <div className="abstract-art__overlay" />
+
       <div className="art-label">
-        <span>Space to begin.</span>
-        <span>Abstract study / 01</span>
+        <span>Dedicated to your health.</span>
+        <span>Internal Medicine / Odessa, TX</span>
       </div>
     </div>
   );

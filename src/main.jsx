@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, useLocation } from "react-router-dom";
 
 import "@fontsource/source-serif-4/400.css";
 import "@fontsource/source-serif-4/600.css";
@@ -9,22 +9,35 @@ import "@fontsource/source-sans-3/600.css";
 import "@fontsource/source-sans-3/700.css";
 
 import "./styles.css";
-import App from "./App.jsx";
-import "./styles.css";
 import "./visual-refresh.css";
 
-const root = document.getElementById("root");
+import App from "./App.jsx";
+import StaffApp from "./staff/StaffApp.jsx";
 
-const app = (
+function Root() {
+  const { pathname } = useLocation();
+
+  return /^\/staff(?:\/|$)/.test(pathname)
+    ? <StaffApp />
+    : <App />;
+}
+
+const container = document.getElementById("root");
+
+const application = (
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <Root />
     </BrowserRouter>
   </React.StrictMode>
 );
 
-if (root.querySelector("[data-app]")) {
-  hydrateRoot(root, app);
+const privateStaffRoute =
+  /^\/staff(?:\/|$)/.test(window.location.pathname);
+
+if (!privateStaffRoute && container.querySelector("[data-app]")) {
+  hydrateRoot(container, application);
 } else {
-  createRoot(root).render(app);
+  container.replaceChildren();
+  createRoot(container).render(application);
 }

@@ -4,10 +4,16 @@ import Icon from "./Icon.jsx";
 import MotionPreferences from "./MotionPreferences.jsx";
 import { site } from "../site.js";
 
+
 export function Brand() {
   return (
     <Link className="brand" to="/" aria-label={`${site.name} home`}>
-      <span className="brand-mark" aria-hidden="true"><span /></span>
+      <img
+        className="brand-icon"
+        src="/favicon.svg"
+        alt=""
+        aria-hidden="true"
+      />
       <span>{site.name}</span>
     </Link>
   );
