@@ -115,16 +115,8 @@ async function refreshOriginal(
     { replacementReference: replacementId }
   );
 
-  // Make the original request visible for staff review again
-  // when it still needs approval.
-  if (original.status === "pending") {
-    await enqueueNotifications(
-      connection,
-      original.id,
-      "requested",
-      decrypt(original.contact_enc).email
-    );
-  }
+  await enqueueNotifications(connection, original.id, "reschedule_closed", decrypt(original.contact_enc).email);
+
 }
 
 // The caller must already hold the provider row lock.

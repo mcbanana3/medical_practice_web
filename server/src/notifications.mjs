@@ -1,3 +1,4 @@
+import { emailContent, emailTime } from "./email-content.mjs";
 import nodemailer from "nodemailer";
 import { config } from "./config.mjs";
 
@@ -16,7 +17,8 @@ export async function enqueueNotifications(
   patientEmail
 ) {
   const [request] = await query(
-    "SELECT version FROM appointment_requests WHERE id=?",
+    `SELECT r.version,r.starts_at,r.ends_at,l.name AS location,p.name AS provider
+     FROM appointment_requests r JOIN locations l ON l.id=r.location_id JOIN providers p ON p.id=r.provider_id WHERE r.id=?`,
     [requestId],
     connection
   );
@@ -25,14 +27,9 @@ export async function enqueueNotifications(
     throw new Error("NOTIFICATION_REQUEST_UNAVAILABLE");
   }
 
-  const recipients = [
-    { type: "patient", email: patientEmail },
-    ...(
-      ["requested", "cancelled"].includes(event)
-        ? [{ type: "admin", email: config.adminEmail }]
-        : []
-    )
-  ];
+  const [replacement] = await query("SELECT original_id FROM patient_reschedules WHERE replacement_id=?", [requestId], connection);
+  const notificationEvent = replacement && ["requested","approved","declined","cancelled"].includes(event) ? "reschedule_" + event : event;
+  const recipients = [{ type: "patient", email: patientEmail }, { type: "admin", email: config.adminEmail }];
 
   const eventKey = `${event}:v${request.version}`;
 
@@ -53,7 +50,13 @@ export async function enqueueNotifications(
         encrypt({
           to: recipient.email,
           reference: requestId,
-          event,
+          event: notificationEvent,
+          startsAt: request.starts_at.toISOString(),
+          endsAt: request.ends_at.toISOString(),
+          location: request.location,
+          provider: request.provider,
+          occurredAt: new Date().toISOString(),
+          originalReference: replacement?.original_id || null,
           version: request.version,
           recipient: recipient.type
         })
@@ -91,50 +94,36 @@ export function createMailTransport() {
   });
 }
 
-function renderMessage(payload) {
-  const portalUrl = config.origin + "/portal";
-  const bookingUrl = config.origin + "/request-an-appointment";
-
-  if (payload.recipient === "admin") {
-    return {
-      subject: "Appointment request update",
-      text: [
-        payload.event === "cancelled"
-          ? "A cancellation update was recorded."
-          : "An appointment request needs review.",
-        "Reference: " + payload.reference,
-        "Use the approved staff workspace for the current status and authorized details."
-      ].join("\n\n")
-    };
-  }
-
+export function renderMessage(payload, currentStatus) {
   const messages = {
-    requested:
-      "Your appointment request was received. Staff approval is required. Sign in for its current status.",
-    approved:
-      "An approval update was recorded for your appointment request. Sign in to view its current status.",
-    declined:
-      "The practice could not approve this appointment request. Sign in to review any related original or replacement request.",
-    cancelled:
-      "A cancellation update was recorded. Sign in to review the current status of this appointment and any related request.",
-    expired:
-      "This earlier request expired under the previous reservation policy."
+    requested: ["Appointment request received", "Your request was received. It was pending staff approval at submission; this email is not an appointment confirmation."],
+    approved: ["Appointment approved", "Staff approved your appointment at the time of this update."],
+    declined: ["Appointment request declined", "The practice could not approve this request. Its reserved time has been released. You may request another available time."],
+    cancelled: ["Appointment cancelled", "This appointment or request was cancelled and its reserved time was released. Any pending replacement linked to an original appointment was also cancelled."],
+    completed: ["Appointment marked completed", "The practice recorded this appointment as completed."],
+    no_show: ["Appointment attendance updated", "The practice recorded a missed appointment. If this is incorrect, please contact the practice."],
+    reschedule_requested: ["Reschedule request received", "Your requested replacement time is pending staff approval. Your original appointment remains reserved until the replacement is approved."],
+    reschedule_approved: ["Reschedule approved", "Staff approved your replacement appointment. The original appointment was cancelled as part of this change."],
+    reschedule_declined: ["Reschedule request declined", "The replacement request was declined. Its time was released. Check your original appointment's current status in the portal or contact the practice."],
+    reschedule_cancelled: ["Reschedule request cancelled", "The replacement request was cancelled and its time was released. Cancelling only a replacement leaves the original unchanged; cancelling the original also cancels its pending replacement."],
+    reschedule_closed: ["Reschedule closed: original retained", "A replacement request was closed. Your original appointment remains active with its existing status."],
+    expired: ["Appointment request expired", "This request expired under the previous reservation policy."]
   };
-
-  return {
-    subject: "Appointment request update",
-    text: [
-      messages[payload.event] ||
-        "Your appointment request has an update.",
-      "Reference: " + payload.reference,
-      "Patient portal: " + portalUrl,
-      ...(payload.event === "declined"
-        ? ["Request another available time: " + bookingUrl]
-        : []),
-      "Do not reply with medical details.",
-      "If you are experiencing a medical emergency, call 911."
-    ].join("\n\n")
-  };
+  const [subject, message] = messages[payload.event] || ["Appointment update", "An appointment record was updated."];
+  const admin = payload.recipient === "admin";
+  return emailContent(admin ? "Practice notification: " + subject : subject, [
+    admin ? "An appointment action was recorded. Review the authorized staff workspace for patient contact details and any required follow-up." : message,
+    payload.occurredAt ? "Action recorded: " + emailTime(payload.occurredAt) : "",
+    "Request reference: " + payload.reference,
+    payload.originalReference ? "Original request reference: " + payload.originalReference : "",
+    payload.startsAt ? "Appointment starts: " + emailTime(payload.startsAt) : "",
+    payload.endsAt ? "Appointment ends: " + emailTime(payload.endsAt) : "",
+    payload.provider ? "Provider: " + payload.provider : "",
+    payload.location ? "Location: " + payload.location : "",
+    currentStatus ? "Status when this email was prepared: " + currentStatus.replaceAll("_", " ") + "." : "",
+    "This email records an action. Later changes may have occurred; check the current status before travelling.",
+    !admin ? "Guests can call the practice for status updates. Creating an account does not automatically link a guest request." : ""
+  ], {label:admin ? "Open staff workspace" : "Open patient portal",url:config.origin+(admin ? "/staff" : "/portal")});
 }
 
 export async function deliverOne(transport) {
@@ -201,46 +190,16 @@ export async function deliverOne(transport) {
       [job.request_id]
     );
 
-    const expectedStatus = {
-      requested: "pending",
-      approved: "approved",
-      declined: "declined",
-      cancelled: "cancelled",
-      expired: "expired"
-    }[payload.event];
+    if (!current) throw new Error("REQUEST_UNAVAILABLE");
 
-    const superseded =
-      !current ||
-      (
-        payload.version != null &&
-        current.version !== payload.version
-      ) ||
-      (
-        expectedStatus &&
-        current.status !== expectedStatus
-      );
-
-    if (superseded) {
-      await query(
-        `UPDATE notification_outbox
-         SET status='failed',
-             last_error_code='SUPERSEDED_BY_UPDATE',
-             locked_until=NULL,
-             lease_token=NULL
-         WHERE id=? AND lease_token=?`,
-        [job.id, job.lease]
-      );
-
-      return { id: job.id, status: "superseded" };
-    }
-
-    const content = renderMessage(payload);
+    const content = renderMessage(payload, current.status);
 
     await transport.sendMail({
       from: config.emailFrom,
       to: payload.to,
       subject: content.subject,
       text: content.text,
+      html: content.html,
       messageId: `<${job.id}@${config.messageDomain}>`
     });
 

@@ -1,3 +1,4 @@
+import { emailContent, emailTime } from "../email-content.mjs";
 import { randomUUID, randomBytes } from "node:crypto";
 import { DateTime } from "luxon";
 import { z } from "zod";
@@ -84,19 +85,19 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
     );
   }
 
-  async function updateMail(c, row, key) {
-    const text =
-      "An appointment record has an update. " +
-      "Sign in for its current status or use the practice's verified contact channel. " +
-      "Do not reply with medical details.";
-
-    for (const [kind, to] of [
-      ["patient", decrypt(row.contact_enc).email],
-      ["admin", config.adminEmail]
-    ]) {
-      await queue(c, key + ":" + kind, {
-        to, subject: "Appointment update", text
-      });
+  async function updateMail(c, row, key, detail = {}) {
+    const event = detail.event || "updated";
+    const titles = { proposed:"Alternate appointment time suggested", accepted:"Alternate appointment time accepted", withdrawn:"Alternate-time suggestion withdrawn", declined:"Alternate-time suggestion declined", completed:"Appointment marked completed", no_show:"Appointment attendance updated" };
+    const messages = { proposed:"The practice suggested an alternate appointment time. This suggestion does not reserve a slot or change your original appointment. Contact the practice to discuss it.", accepted:"The practice recorded your agreement and accepted the alternate time. Review your replacement appointment for its confirmed details.", withdrawn:"The practice withdrew an alternate-time suggestion. Your original appointment has not been changed by this action.", declined:"An alternate-time suggestion was declined. The original appointment has not been changed by this action.", completed:"The practice marked this appointment as completed.", no_show:"The practice recorded a missed appointment. Contact the practice if this is incorrect." };
+    for (const [kind, to] of [["patient",decrypt(row.contact_enc).email],["admin",config.adminEmail]]) {
+      const content = emailContent(titles[event] || "Appointment updated", [
+        messages[event] || "An appointment record was updated.",
+        "Reference: " + row.id,
+        "Original appointment: " + emailTime(row.starts_at),
+        detail.startsAt ? "Suggested / replacement time: " + emailTime(detail.startsAt) : "",
+        "This email records an action. Check the current status before travelling. Guests can call the practice for help."
+      ], {label:kind === "admin" ? "Open staff workspace" : "Open patient portal",url:config.origin+(kind === "admin" ? "/staff" : "/portal")});
+      await queue(c,key+":"+kind,{to,subject:content.subject,text:content.text});
     }
   }
 
@@ -384,7 +385,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       await audit(c, row.id, ctx.subject, "request." + body.action, {
         from: row.status, to: body.action, version: row.version + 1
       });
-      await updateMail(c, row, `outcome:${row.id}:${row.version + 1}`);
+      await enqueueNotifications(c, row.id, body.action, decrypt(row.contact_enc).email);
     }
 
     await note(c, ctx, row, body.staffReason);
@@ -453,7 +454,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
 
     await note(c, ctx, row, body.staffReason);
     await audit(c, row.id, ctx.subject, "proposal.created", { proposalReference: id });
-    await updateMail(c, row, `proposal:${id}:1`);
+    await updateMail(c, row, `proposal:${id}:1`, {event:"proposed",startsAt:slot.startsAt});
 
     return { message: "Suggestion saved. It does not reserve a slot or change the original appointment." };
   });
@@ -559,7 +560,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       proposalReference: id,
       ...(replacement ? { replacementReference: replacement } : {})
     });
-    await updateMail(c, row, `proposal:${id}:${proposal.version + 1}`);
+    await updateMail(c, row, `proposal:${id}:${proposal.version + 1}`, {event:status,startsAt:proposal.starts_at});
 
     return { message: "Suggestion updated.", reference: replacement };
   });

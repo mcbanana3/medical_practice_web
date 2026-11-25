@@ -1,3 +1,4 @@
+import { queueAccountMail } from "./auth/mail.mjs";
 import express from "express";
 import { DateTime } from "luxon";
 import { z } from "zod";
@@ -268,6 +269,7 @@ export function mountPatientRecords(router) {
         { version: nextVersion }
       );
 
+      await queueAccountMail(connection, profile.email, "profile_updated");
       return nextVersion;
     });
 

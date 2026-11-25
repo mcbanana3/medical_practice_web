@@ -276,3 +276,18 @@ test("patient rescheduling preserves the original and cancellation releases both
  const available=(await client.call("/api/booking/availability?"+parameters)).data.slots;
  assert.ok(available.some(s=>s.startsAt===slots[0].startsAt));assert.ok(available.some(s=>s.startsAt===slots[1].startsAt));
 });
+
+
+test("successful account actions queue specific emails and failed actions queue none", async () => {
+ const client=await verifiedClient("mail-actions@example.test");
+ const kinds=async()=> (await query("SELECT payload_enc FROM patient_mail_outbox")).map(row=>decrypt(row.payload_enc).kind);
+ assert.ok((await kinds()).includes("verify"));assert.ok((await kinds()).includes("verified"));assert.ok((await kinds()).includes("login"));
+ const count=(await kinds()).length;
+ assert.equal((await client.call("/api/auth/login",{email:"mail-actions@example.test",password:"Wrong test password",captchaToken:"test"})).status,401);
+ assert.equal((await kinds()).length,count);
+ const profile=(await client.call("/api/portal/profile")).data;
+ await client.call("/api/portal/profile",{version:profile.version,details:{displayName:"Synthetic mail test"}});
+ assert.ok((await kinds()).includes("profile_updated"));
+ await client.call("/api/portal/sessions/revoke-all",{});
+ assert.ok((await kinds()).includes("sessions_revoked"));
+});

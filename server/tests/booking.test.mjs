@@ -397,3 +397,18 @@ test("reservations occupy exactly 30 minutes and pending slots disappear", async
  const updated = await available();
  assert.ok(!updated.slots.some(slot => slot.startsAt === data.slots[0].startsAt));
 });
+
+
+test("quick approval delivers both action receipts without dropping the earlier event", async () => {
+ const data=await available();
+ const created=await post("/api/booking/requests",inputFor(data.option,data.slots[0]));
+ const ref=created.body.receipt.reference;
+ await query("INSERT INTO staff_scopes(subject,location_id,provider_id,can_decide) VALUES('development-test-staff',1,1,1)");
+ assert.equal((await post('/api/staff/requests/'+ref+'/actions',{action:'approve',expectedVersion:1})).status,200);
+ const messages=[];
+ for(let n=0;n<4;n++){const result=await deliverOne({sendMail:async mail=>messages.push(mail)});assert.equal(result.status,'sent');}
+ assert.equal(messages.length,4);
+ assert.ok(messages.some(mail=>mail.subject==='Appointment request received'));
+ assert.ok(messages.some(mail=>mail.subject==='Appointment approved'));
+ for(const mail of messages){assert.ok(mail.html);assert.ok(mail.text.includes('Status when this email was prepared: approved'));assert.ok(!mail.text.includes('Development Test Guest'));}
+});

@@ -1,3 +1,4 @@
+import { emailContent } from "../email-content.mjs";
 import { z } from "zod";
 import { config } from "../config.mjs";
 import {
@@ -73,6 +74,7 @@ export async function deliverCommunication(transport) {
     await transport.sendMail({
       from: config.emailFrom,
       ...payload,
+      html: emailContent(payload.subject, payload.text.split(/\n\n+/)).html,
       messageId: `<staff.${job.id}@${config.messageDomain}>`
     });
 

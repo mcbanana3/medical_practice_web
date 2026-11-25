@@ -278,6 +278,7 @@ export function patientRouter({
         !locked.email_verified_at
       ) throw new SafeError(401, "SIGN_IN_FAILED", "Sign-in could not be completed.");
 
+      await queueAccountMail(connection, decrypt(locked.profile_enc).email, "login");
       return issueSession(
         connection, response, locked, request.patientSession.id, "password"
       );
@@ -328,6 +329,7 @@ export function patientRouter({
         [patient.id], connection
       );
       await audit(connection, null, `patient:${patient.id}`, "patient.email.verified");
+      await queueAccountMail(connection, decrypt(patient.profile_enc).email, "verified");
     });
 
     response.json({ message: "Email verified. You can now sign in." });
@@ -367,7 +369,7 @@ export function patientRouter({
         [patient.id], connection
       );
       await queueAccountMail(
-        connection, decrypt(patient.profile_enc).email, "notice"
+        connection, decrypt(patient.profile_enc).email, "password_reset"
       );
       await audit(connection, null, `patient:${patient.id}`, "patient.password.reset");
     });
@@ -377,10 +379,10 @@ export function patientRouter({
   });
 
   router.post("/api/auth/logout", async (request, response) => {
-    await query(
-      "UPDATE patient_sessions SET revoked_at=UTC_TIMESTAMP(3) WHERE id=?",
-      [request.patientSession.id]
-    );
+    await transaction(async connection => {
+      await query("UPDATE patient_sessions SET revoked_at=UTC_TIMESTAMP(3) WHERE id=?", [request.patientSession.id], connection);
+      if (request.patient) await queueAccountMail(connection, decrypt(request.patient.profile_enc).email, "logout");
+    });
     clearSessionCookie(response);
     response.json({ ok: true });
   });
@@ -500,6 +502,7 @@ export function patientRouter({
           await audit(connection, null, `patient:${patient.id}`, "patient.google.linked");
         }
 
+        await queueAccountMail(connection, decrypt(patient.profile_enc).email, purpose === "link" ? "google_linked" : "reauthenticated");
         return;
       }
 
@@ -507,6 +510,7 @@ export function patientRouter({
         throw new SafeError(401, "GOOGLE_FAILED", "Restart Google sign-in.");
       }
 
+      let createdAccount = false;
       let [patient] = await query(
         "SELECT * FROM patient_accounts WHERE google_sub=? FOR UPDATE",
         [claims.sub], connection
@@ -526,6 +530,7 @@ export function patientRouter({
           );
         }
 
+        createdAccount = true;
         patient = {
           id: newId(),
           auth_version: 1,
@@ -554,6 +559,7 @@ export function patientRouter({
       await issueSession(
         connection, response, patient, request.patientSession.id, "google"
       );
+      await queueAccountMail(connection, decrypt(patient.profile_enc).email, createdAccount ? "registered" : "login");
     });
 
     response.json({ ok: true });
@@ -646,6 +652,7 @@ export function patientRouter({
         [encrypt(profile), patient.id], connection
       );
       await audit(connection, null, `patient:${patient.id}`, "patient.profile.updated");
+      await queueAccountMail(connection, decrypt(request.patient.profile_enc).email, "profile_updated");
     });
 
     response.json({ message: "Profile updated." });
@@ -679,6 +686,7 @@ export function patientRouter({
         [id, request.patient.id], connection
       );
       await audit(connection, null, `patient:${request.patient.id}`, "patient.session.revoked");
+      await queueAccountMail(connection, decrypt(request.patient.profile_enc).email, "session_revoked");
     });
 
     if (id === request.patientSession.id) clearSessionCookie(response);
@@ -694,6 +702,7 @@ export function patientRouter({
         [request.patient.id], connection
       );
       await audit(connection, null, `patient:${request.patient.id}`, "patient.sessions.revoked");
+      await queueAccountMail(connection, decrypt(request.patient.profile_enc).email, "sessions_revoked");
     });
 
     clearSessionCookie(response);
@@ -750,7 +759,7 @@ export function patientRouter({
         { ...locked, auth_version: locked.auth_version + 1 },
         null, "password"
       );
-      await queueAccountMail(connection, decrypt(locked.profile_enc).email, "notice");
+      await queueAccountMail(connection, decrypt(locked.profile_enc).email, "password_changed");
       await audit(connection, null, `patient:${patient.id}`, "patient.password.changed");
     });
 
@@ -781,6 +790,7 @@ export function patientRouter({
         [patient.id], connection
       );
       await audit(connection, null, `patient:${patient.id}`, "patient.google.unlinked");
+      await queueAccountMail(connection, decrypt(request.patient.profile_enc).email, "google_unlinked");
     });
 
     response.json({ message: "Google identity unlinked. Password sign-in remains available." });
@@ -983,6 +993,7 @@ export function patientRouter({
         connection, ticket.request_id,
         `patient:${patient.id}`, "request.link.redeemed"
       );
+      await queueAccountMail(connection, decrypt(patient.profile_enc).email, "request_linked");
     });
 
     response.json({ message: "The request is now linked to your account." });

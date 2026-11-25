@@ -1,0 +1,10 @@
+import { config } from './config.mjs';
+const brand = 'Harika Thummala Internal Medicine';
+const escape = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+export function emailContent(subject, paragraphs, action = {}) {
+ const lines = [brand, ...paragraphs.filter(Boolean), action.url ? `${action.label || 'Continue'}: ${action.url}` : '', `Practice support: ${config.support}`, 'Do not reply with medical information. For a medical emergency, call 911.'].filter(Boolean);
+ let url='';
+ try { const candidate=new URL(action.url); if(candidate.origin===new URL(config.origin).origin)url=candidate.href; } catch {}
+ return {subject, text:lines.join('\n\n'), html:`<!doctype html><html><body style="margin:0;background:#f5f4fa;font-family:Arial,sans-serif;color:#202943"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 12px"><table role="presentation" width="100%" style="max-width:600px;margin:auto;background:#fff;border:1px solid #dedbea;border-radius:16px"><tr><td style="padding:28px"><p style="color:#253db8;font-weight:bold">${brand}</p><h1 style="font-size:25px;line-height:1.3">${escape(subject)}</h1>${paragraphs.filter(Boolean).map(line=>`<p style="font-size:16px;line-height:1.65;overflow-wrap:anywhere">${escape(line)}</p>`).join('')}${url?`<p style="margin:28px 0"><a href="${escape(url)}" style="display:inline-block;padding:14px 20px;border-radius:8px;background:#253db8;color:#fff;text-decoration:none">${escape(action.label || 'Continue')}</a></p>`:''}<hr style="border:0;border-top:1px solid #e3dfed"><p style="font-size:14px;line-height:1.6">Practice support: ${escape(config.support)}<br>Do not reply with medical information.<br>For a medical emergency, call 911.</p></td></tr></table></td></tr></table></body></html>`};
+}
+export const emailTime = value => new Intl.DateTimeFormat('en-US',{timeZone:config.zone,dateStyle:'full',timeStyle:'short'}).format(new Date(value)) + ` (${config.zone})`;
