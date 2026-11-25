@@ -1,3 +1,4 @@
+import ReviewModeration from "./ReviewModeration.jsx";
 import {
   LocalAuthPage, LocalAccount, LocalAccess, isLocalAuthPath
 } from "./LocalAuth.jsx";
@@ -357,6 +358,7 @@ function StaffRoutes() {
             <Route path="/staff/access" element={
                 <Gate permission="access"><LocalAccess /></Gate>
             } />
+            <Route path="/staff/reviews" element={<Gate permission="access"><ReviewModeration /></Gate>} />
             <Route path="/staff/account" element={<><Account /><LocalAccount /></>} />
             <Route path="/staff/login" element={<Navigate replace to="/staff" />} />
             <Route path="*" element={
@@ -408,7 +410,8 @@ function Workspace({ session, endSession }) {
                             ["availability", "/staff/availability", "Availability"],
                             ["audit", "/staff/audit", "Audit"],
                             ["access", "/staff/access", "Access"],
-                            [null, "/staff/account", "Account"]
+                            ["access", "/staff/reviews", "Reviews"],
+            [null, "/staff/account", "Account"]
                         ].filter(([permission]) => !permission || can(permission))
                             .map(([, path, label]) => (
                                 <NavLink key={path} to={path} end={path === "/staff"}>

@@ -8,6 +8,8 @@ const initialValues = {
   previewAcknowledged: false
 };
 
+export { ReviewForm as default } from "./PracticeReviews.jsx";
+
 export default function ReviewForm() {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});

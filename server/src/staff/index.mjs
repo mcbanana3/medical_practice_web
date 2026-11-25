@@ -1,3 +1,4 @@
+import { mountReviewModeration } from "../reviews.mjs";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -173,6 +174,7 @@ export function createStaffRouter() {
   mountAuth(router);
   mountOperations({ add, need, scoped, scopeSQL });
   mountLocalAccounts({ add, need, scopeSQL });
+  mountReviewModeration({ add, need, scopeSQL });
   mountManagement({ add, need, scoped, scopeSQL });
 
   // Do not call next(): unknown staff paths must never reach
