@@ -566,6 +566,7 @@ export default function Booking() {
                       )}
 
                       <Recaptcha
+                        id="booking-captcha"
                         ref={captchaWidget}
                         onToken={(token) => {
                           setCaptcha(token);

@@ -1,19 +1,23 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, useRef } from "react";
 import { post, session } from "./client.js";
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
     loading: true, patient: null, error: ""
   });
 
-  const refresh = useCallback(async () => {
+  const revision = useRef(0);
+  const refresh = useCallback(async (force = false) => {
+    const current = ++revision.current;
     try {
-      const result = await session();
+      const result = await session(force === true);
+      if (current !== revision.current) return null;
       setState({ ...result, loading: false, error: "" });
       return result;
     } catch {
+      if (current !== revision.current) return null;
       setState({
         loading: false,
         patient: null,
@@ -36,9 +40,10 @@ export function AuthProvider({ children }) {
   }, [refresh]);
 
   async function logout() {
+    revision.current += 1;
     await post("/api/auth/logout");
     setState({ loading: false, patient: null, error: "" });
-    await refresh();
+    await refresh(true);
   }
 
   return (

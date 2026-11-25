@@ -319,7 +319,8 @@ export function mountPatientRecords(router) {
       contact: {
         name: contact.name || "",
         email: contact.email || "",
-        phone: contact.phone || ""
+        phone: contact.phone || "",
+        reason: contact.reason || ""
       },
 
       canCancel: active && future,

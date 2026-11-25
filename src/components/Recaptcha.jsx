@@ -1,5 +1,5 @@
 import {
-  forwardRef, useEffect, useImperativeHandle, useRef, useState
+  forwardRef, useEffect, useImperativeHandle, useRef, useState, useId
 } from "react";
 import Button from "./Button.jsx";
 
@@ -17,11 +17,27 @@ function loadGoogle() {
       script.async = true;
       script.defer = true;
 
+      const timer = window.setTimeout(() => {
+        script.remove();
+        scriptPromise = null;
+        reject(new Error("Security service timed out"));
+      }, 15000);
       script.onload = () => {
-        window.grecaptcha.ready(() => resolve(window.grecaptcha));
+        if (!window.grecaptcha?.ready) {
+          window.clearTimeout(timer);
+          script.remove();
+          scriptPromise = null;
+          reject(new Error("Security service unavailable"));
+          return;
+        }
+        window.grecaptcha.ready(() => {
+          window.clearTimeout(timer);
+          resolve(window.grecaptcha);
+        });
       };
 
       script.onerror = () => {
+        window.clearTimeout(timer);
         script.remove();
         scriptPromise = null;
         reject(new Error("Security service unavailable"));
@@ -34,12 +50,12 @@ function loadGoogle() {
   return scriptPromise;
 }
 
-const Recaptcha = forwardRef(function Recaptcha({ onToken }, ref) {
+const Recaptcha = forwardRef(function Recaptcha({ onToken, id }, ref) {
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   const host = useRef(null);
   const widget = useRef(null);
   const tokenHandler = useRef(onToken);
-  const [enabled, setEnabled] = useState(false);
+  const uniqueId = useId();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -57,7 +73,7 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken }, ref) {
   useImperativeHandle(ref, () => ({ reset }));
 
   useEffect(() => {
-    if (!enabled || !siteKey) return undefined;
+    if (!siteKey) return undefined;
 
     let active = true;
     setLoading(true);
@@ -89,18 +105,18 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken }, ref) {
     });
 
     return () => { active = false; };
-  }, [enabled, attempt, siteKey]);
+  }, [attempt, siteKey]);
 
   return (
     <section
-      id="booking-captcha"
+      id={id || `security-${uniqueId}`}
       className="captcha-panel"
       tabIndex="-1"
       aria-label="Security verification"
     >
       <h3>Security check</h3>
       <p className="help">
-        Loading this check connects to Google. Google’s privacy policy and
+        This security check connects to Google automatically. Google’s privacy policy and
         terms apply. No appointment or contact fields are passed to this widget.
       </p>
 
@@ -117,13 +133,7 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken }, ref) {
         <p className="field-error">The security check has not been configured.</p>
       ) : (
         <>
-          {!enabled && (
-            <Button type="button" variant="outline" onClick={() => setEnabled(true)}>
-              Load security check
-            </Button>
-          )}
-
-          <div ref={host} />
+          <div ref={host} className="captcha-widget" aria-busy={loading} />
 
           <p role="status">{loading ? "Loading security check…" : ""}</p>
 

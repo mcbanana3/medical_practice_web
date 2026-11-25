@@ -1,6 +1,5 @@
 
 import { useEffect, useState } from "react";
-import Button from "./Button.jsx";
 import Icon from "./Icon.jsx";
 import { practice } from "../content.js";
 
@@ -28,7 +27,6 @@ function googleUrl(value, embedded = false) {
 }
 
 export default function LocationMap() {
-  const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [delayed, setDelayed] = useState(false);
 
@@ -44,7 +42,7 @@ export default function LocationMap() {
     Boolean(embedUrl);
 
   useEffect(() => {
-    if (!open || loaded) return undefined;
+    if (!configured || loaded) return undefined;
 
     const timer = window.setTimeout(
       () => setDelayed(true),
@@ -52,19 +50,19 @@ export default function LocationMap() {
     );
 
     return () => window.clearTimeout(timer);
-  }, [open, loaded]);
+  }, [configured, loaded]);
 
   return (
     <section
       className="google-map-panel"
       aria-label="Practice location map"
     >
-      {open && configured ? (
+      {configured ? (
         <div className="google-map-frame">
           <iframe
             title={`Google Maps location: ${practice.address}`}
             src={embedUrl}
-            loading="lazy"
+            loading="eager"
             allowFullScreen
             referrerPolicy="no-referrer-when-downgrade"
             onLoad={() => setLoaded(true)}
@@ -114,34 +112,11 @@ export default function LocationMap() {
         )}
 
         <p className="help">
-          Loading the map connects your browser to Google.
-          Written location details remain available without
-          loading the interactive map.
+          The map loads automatically using Google Maps.
+          You can also use the written address or open directions.
         </p>
 
         <div className="button-row">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!configured}
-            arrow={false}
-            onClick={() => {
-              if (open) {
-                setOpen(false);
-              } else {
-                setLoaded(false);
-                setDelayed(false);
-                setOpen(true);
-              }
-            }}
-          >
-            {open
-              ? "Hide Google Maps"
-              : configured
-                ? "Load Google Maps"
-                : "Map awaiting verification"}
-          </Button>
-
           {configured && directionsUrl && (
             <a
               className="inline-link"
@@ -155,7 +130,7 @@ export default function LocationMap() {
         </div>
 
         <div role="status" className="map-status">
-          {open && !loaded && (
+          {configured && !loaded && (
             <p>
               {delayed
                 ? "The map is taking longer than expected to load. You can use the written address instead."

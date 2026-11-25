@@ -705,3 +705,20 @@ html[data-motion="off"] *::after {
 .site-footer .brand { max-width:100%; }
 @media (max-width:900px) { .hero-grid { grid-template-columns: minmax(0,1fr) minmax(0,.85fr); } .hero-art .abstract-art { height:450px; } .process-grid { gap:18px; } .process-grid li { padding:20px; } }
 @media (max-width:640px) { .hero-grid { grid-template-columns:1fr; } .hero-art .abstract-art { height:420px; min-height:0; } .page-intro::after { width:260px; height:260px; opacity:.5; } .process-grid li { grid-template-columns:36px minmax(0,1fr); } .site-nav { justify-content:initial; } .cta-inner > * { max-width:100%; } }
+/* Automatic embedded services: keep widgets within narrow form columns. */
+.captcha-panel { min-width:0; max-width:100%; }
+.captcha-widget { min-height:144px; max-width:100%; margin-top:16px; }
+.captcha-panel .inline-links { align-items:flex-start; gap:8px 20px; }
+.captcha-panel .inline-links a { overflow-wrap:anywhere; }
+.captcha-panel > p[role="status"]:empty { min-height:0; margin:0; }
+.google-map-panel { width:100%; min-width:0; align-self:start; }
+.google-map-frame { position:relative; height:360px; min-width:0; overflow:hidden; }
+.google-map-frame iframe { display:block; width:100%; height:100%; border:0; }
+.google-map-details .map-status:empty { margin:0; }
+.live-reviews .captcha-widget iframe { max-width:100%; }
+@media (max-width:640px) {
+  .captcha-panel { padding:14px; }
+  .captcha-panel .inline-links { flex-direction:column; gap:4px; }
+  .google-map-frame { height:300px; }
+  .google-map-details { padding:22px; }
+}

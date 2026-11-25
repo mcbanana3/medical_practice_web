@@ -67,7 +67,7 @@ export default function PatientAppointmentDetail({
     request(`/api/portal/appointments/${reference}`, {
       signal: controller.signal
     })
-      .then(setData)
+      .then(result => { if (!controller.signal.aborted) setData(result); })
       .catch((failure) => {
         if (failure.name !== "AbortError") {
           setLoadError(failure.message);
@@ -95,6 +95,7 @@ export default function PatientAppointmentDetail({
       signal: controller.signal
     })
       .then((result) => {
+        if (controller.signal.aborted) return;
         setMeta(result);
         setDate((current) => current || result.minDate);
       })
@@ -133,7 +134,7 @@ export default function PatientAppointmentDetail({
     request(`/api/booking/availability?${parameters}`, {
       signal: controller.signal
     })
-      .then((result) => setSlots(result.slots))
+      .then((result) => { if (!controller.signal.aborted) setSlots(result.slots); })
       .catch((failure) => {
         if (failure.name !== "AbortError") {
           setError(failure.message);
@@ -325,6 +326,7 @@ export default function PatientAppointmentDetail({
         ],
         ["Clinic time zone", data.clinicTimeZone],
         ["Contact number", data.contact.phone || "Not provided"],
+        ["Reason for visit", data.contact.reason || "Not provided"],
         ["Reference", data.reference]
       ]} />
 

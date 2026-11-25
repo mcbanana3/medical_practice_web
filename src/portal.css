@@ -134,4 +134,55 @@
   .patient-shell .section-topline > .button {
     width: 100%;
   }
-}
+}/* Patient workspace */
+.patient-shell { background:#f6f6fb; color:#202943; }
+.patient-shell .portal-header { border-bottom:1px solid #e2e3ef; }
+.patient-shell .portal-header > .container { min-height:92px; gap:16px; }
+.patient-shell .portal-header .brand { flex:0 1 320px; }
+.patient-shell .portal-header .brand > span:last-child { max-width:240px; font-size:1.05rem; }
+.patient-shell .portal-header > .container > span { background:#eeeafe; padding:6px 14px; border-radius:30px; color:#253db8; font-weight:600; }
+.patient-shell .portal-header button { margin-left:auto; }
+.patient-shell .portal-nav { background:white; border-bottom:1px solid #e2e3ef; }
+.patient-shell .portal-nav > .container { gap:8px; padding-block:12px; }
+.patient-shell .portal-nav a { padding:10px 18px; border-radius:12px; min-height:46px; }
+.patient-shell .portal-nav a.active { background:#eeeafe; text-decoration:none; color:#253db8; }
+.patient-shell .portal-nav a:hover { background:#f5f3fd; }
+.patient-shell .portal-main { padding-block:44px 72px; min-height:60vh; }
+.patient-shell .section-topline { align-items:center; margin-bottom:32px; }
+.patient-shell h1 { font-size:clamp(2rem,4vw,3rem); }
+.patient-shell .button { border-radius:12px; }
+.patient-shell .portal-block,.patient-shell .portal-appointments li { border:1px solid #dddfee; border-radius:20px; box-shadow:0 10px 34px #17235005; }
+.portal-welcome { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:24px; border:1px solid #d8d3ee; border-radius:24px; padding:clamp(24px,4vw,40px); background:radial-gradient(ellipse at top right,#e1dbfc,transparent 65%),#f0edfc; }
+.portal-welcome > div { min-width:0; flex:1 1 320px; }
+.portal-welcome .eyebrow { margin-bottom:12px; }
+.portal-welcome h2 { overflow-wrap:anywhere; margin-bottom:18px; font-size:clamp(1.7rem,3vw,2.5rem); }
+.portal-account-badge { background:white; border:1px solid #d5cfeb; border-radius:30px; padding:8px 16px; font-size:.9rem; color:#253db8; }
+.portal-shortcuts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:24px 0 40px; }
+.portal-shortcuts a { display:grid; align-content:start; gap:12px; border:1px solid #e0ddec; border-radius:18px; padding:24px; background:white; text-decoration:none; min-width:0; }
+.portal-shortcuts a:hover { border-color:#253db8; background:#faf9ff; }
+.portal-shortcuts strong { font-size:1.1rem; }
+.portal-shortcuts span { color:#60667b; font-size:1rem; }
+.portal-section-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; margin:28px 0 18px; }
+.portal-section-heading h2 { font-size:clamp(1.5rem,3vw,2rem); }
+.patient-shell .portal-appointments { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.patient-shell .portal-appointments li { min-width:0; border-top:3px solid #c4b8ef; }
+.patient-shell .portal-appointments h2 { font-size:1.5rem; line-height:1.35; }
+.patient-shell .portal-appointments h2 a { text-decoration:none; }
+.patient-shell .portal-status { border:0; border-radius:30px; padding:6px 12px; background:#f0edfc; font-size:.88rem; }
+.patient-shell .portal-status--approved { background:#e5f3ec; color:#225d46; }
+.patient-shell .portal-status--pending { background:#fff1d8; color:#795000; }
+.patient-shell .portal-status--cancelled,.patient-shell .portal-status--declined { background:#f4e8eb; color:#87354c; }
+.portal-detail-link { display:flex; justify-content:space-between; align-items:center; gap:16px; padding-top:18px; margin-top:20px; border-top:1px solid #e5e2ef; font-size:1rem; font-weight:600; }
+.patient-shell .patient-details { max-width:100%; }
+.patient-shell .patient-details fieldset:not(.time-fieldset) { border-color:#dddfee; border-radius:20px; padding:clamp(20px,3vw,32px); }
+.patient-shell .patient-form-grid { gap:8px 28px; }
+.patient-shell .field input,.patient-shell .field textarea { border-radius:10px; min-height:50px; border-color:#9b9fb6; }
+.patient-shell .field input[readonly] { background:#f1f2f8; }
+.patient-shell .patient-action-panel { border-color:#d8d0ef; }
+.patient-shell .portal-footer { border-color:#dddfee; padding-block:28px; }
+.patient-shell .portal-block > form { max-width:700px; }
+.patient-shell .portal-session-list li > div { min-width:0; }
+.patient-shell .portal-main > form { max-width:720px; padding:28px; border:1px solid #dddfee; border-radius:20px; background:#fff; margin-top:24px; }
+@media(max-width:800px) { .portal-shortcuts { grid-template-columns:1fr; gap:12px; } .portal-shortcuts a { gap:6px; padding:20px; } .patient-shell .portal-appointments { grid-template-columns:1fr; } }
+@media(max-width:640px) { .patient-shell .portal-header .brand { flex:1 1 200px; } .patient-shell .portal-header > .container > span { font-size:.85rem; } .patient-shell .portal-nav > .container { gap:4px; } .patient-shell .portal-nav a { padding:10px 12px; font-size:.95rem; } .patient-shell .portal-main { padding-top:28px; } .patient-shell .section-topline { align-items:stretch; } .patient-shell .portal-main > form { padding:20px; } .patient-shell .portal-session-list li { align-items:flex-start; } .portal-welcome { padding:24px; } }
+.portal-feedback { padding:18px 22px; border:1px solid #ccc4e8; border-left:4px solid #253db8; border-radius:12px; background:#f0edfc; margin:20px 0; overflow-wrap:anywhere; }

@@ -477,6 +477,7 @@ export default function AuthPages({ mode }) {
               )}
 
               <Recaptcha
+                        id="booking-captcha"
                 ref={captchaRef}
                 onToken={(value) => {
                   setCaptchaToken(value || "");

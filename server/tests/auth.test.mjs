@@ -10,6 +10,8 @@ let base;
 
 async function clean() {
   for (const table of [
+    "patient_reschedules",
+    "patient_details",
     "patient_guest_link_codes",
     "patient_request_links",
     "patient_auth_tokens",
@@ -69,13 +71,13 @@ async function register(client, email) {
   });
 }
 
-async function tokenFor(kind) {
+async function tokenFor(kind, email) {
   const rows = await query(
     "SELECT payload_enc FROM patient_mail_outbox ORDER BY next_attempt_at, id"
   );
 
   const payload = rows.map((row) => decrypt(row.payload_enc))
-    .find((item) => item.kind === kind);
+    .find((item) => item.kind === kind && (!email || item.to === email));
 
   assert.ok(payload, `Expected ${kind} email`);
   return new URLSearchParams(new URL(payload.url).hash.slice(1)).get("token");
@@ -84,7 +86,7 @@ async function tokenFor(kind) {
 async function verifiedClient(email) {
   const client = new Client();
   await register(client, email);
-  const token = await tokenFor("verify");
+  const token = await tokenFor("verify", email);
   assert.equal((await client.call("/api/auth/verify-email", {
     token, captchaToken: "test"
   })).status, 200);
@@ -229,4 +231,48 @@ test("returning patient booking validates contacts and links the 30-minute reque
  assert.equal(detail.status,200);
  assert.equal(new Date(detail.data.endsAt)-new Date(detail.data.startsAt),1800000);
  assert.equal(detail.data.status,"pending");
+});
+
+
+test("profile edits persist, enforce versions, and stay private to their account", async () => {
+ const client = await verifiedClient("profile@example.test");
+ const initial = await client.call("/api/portal/profile");
+ assert.equal(initial.status,200);
+ const saved = await client.call("/api/portal/profile", {version:initial.data.version,details:{displayName:"Synthetic patient",phone:"4323370555",medicalHistory:"Synthetic test information"}});
+ assert.equal(saved.status,200);
+ const reloaded = await client.call("/api/portal/profile");
+ assert.equal(reloaded.data.details.displayName,"Synthetic patient");
+ assert.equal(reloaded.data.details.phone,"+14323370555");
+ assert.equal(reloaded.data.details.medicalHistory,"Synthetic test information");
+ assert.equal((await client.call("/api/portal/profile",{version:initial.data.version,details:{displayName:"Stale update"}})).status,409);
+ const [current] = await query("SELECT patient_id FROM patient_details");
+ const [record] = await query("SELECT details_enc FROM patient_details WHERE patient_id=?",[current.patient_id]);
+ assert.ok(!record.details_enc.includes("Synthetic test information"));
+ const contact = await client.call("/api/portal/contact");
+ assert.equal(contact.data.medicalHistory,undefined);
+ const other = new Client(); await other.session();
+ assert.equal((await other.call("/api/portal/profile")).status,401);
+});
+
+test("patient rescheduling preserves the original and cancellation releases both linked reservations", async () => {
+ const client=await verifiedClient("changes@example.test");
+ const meta=(await client.call("/api/booking/options")).data;const option=meta.options[0];
+ const date=meta.dateChoices.find(d=>d>meta.minDate&&![0,6].includes(new Date(d+"T12:00:00Z").getUTCDay()));
+ const parameters=new URLSearchParams({locationId:option.locationId,providerId:option.providerId,typeId:option.typeId,date});
+ const slots=(await client.call("/api/booking/availability?"+parameters)).data.slots;
+ const created=await client.call("/api/portal/requests",{locationId:option.locationId,providerId:option.providerId,typeId:option.typeId,startsAt:slots[0].startsAt,name:"Synthetic patient",email:"changes@example.test",phone:"4323370555",reason:"Follow up",captchaToken:"test"},{"Idempotency-Key":crypto.randomUUID()});
+ assert.equal(created.status,201);const ref=created.data.receipt.reference;
+ const detail=(await client.call("/api/portal/appointments/"+ref)).data;
+ assert.equal(detail.contact.reason,"Follow up");
+ const other=await verifiedClient("other@example.test");
+ assert.equal((await other.call("/api/portal/appointments/"+ref)).status,404);
+ const replacement=await client.call("/api/portal/appointments/"+ref+"/reschedule",{expectedVersion:detail.version,startsAt:slots[1].startsAt},{"Idempotency-Key":crypto.randomUUID()});
+ assert.equal(replacement.status,201);
+ const original=(await client.call("/api/portal/appointments/"+ref)).data;
+ assert.equal(original.status,"pending");assert.equal(original.canReschedule,false);
+ assert.equal((await client.call("/api/portal/appointments/"+ref+"/cancel",{expectedVersion:detail.version})).status,409);
+ assert.equal((await client.call("/api/portal/appointments/"+ref+"/cancel",{expectedVersion:original.version})).status,200);
+ assert.equal((await client.call("/api/portal/appointments/"+replacement.data.reference)).data.status,"cancelled");
+ const available=(await client.call("/api/booking/availability?"+parameters)).data.slots;
+ assert.ok(available.some(s=>s.startsAt===slots[0].startsAt));assert.ok(available.some(s=>s.startsAt===slots[1].startsAt));
 });

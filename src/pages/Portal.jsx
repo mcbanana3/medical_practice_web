@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { Brand } from "../components/Header.jsx";
 import Button from "../components/Button.jsx";
-import { Facts } from "../components/Content.jsx";
+import { practice } from "../content.js";
 import Layout from "../components/Layout.jsx";
 import Notice from "../components/Notice.jsx";
 import PageIntro from "../components/PageIntro.jsx";
@@ -34,25 +34,26 @@ function dateTime(value, zone) {
 }
 
 function useData(path, identity) {
-  const [state, setState] = useState({ loading: true, data: null, error: "" });
+  const resourceKey = `${identity}:${path}`;
+  const [state, setState] = useState({ key: null, loading: true, data: null, error: "" });
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    setState({ loading: true, data: null, error: "" });
+    setState({ key: resourceKey, loading: true, data: null, error: "" });
 
     request(path, { signal: controller.signal })
-      .then((data) => setState({ loading: false, data, error: "" }))
+      .then((data) => { if (!controller.signal.aborted) setState({ key: resourceKey, loading: false, data, error: "" }); })
       .catch((error) => {
-        if (error.name !== "AbortError") {
-          setState({ loading: false, data: null, error: error.message });
+        if (!controller.signal.aborted && error.name !== "AbortError") {
+          setState({ key: resourceKey, loading: false, data: null, error: error.message });
         }
       });
 
     return () => controller.abort();
   }, [path, identity, version]);
 
-  return { ...state, reload: () => setVersion((value) => value + 1) };
+  return { ...(state.key === resourceKey ? state : {loading:true,data:null,error:""}), reload: () => setVersion((value) => value + 1) };
 }
 
 function DataState({ state, children }) {
@@ -67,7 +68,7 @@ function DataState({ state, children }) {
       </div>
     );
   }
-  return children(state.data);
+  return state.data ? children(state.data) : null;
 }
 
 function AppointmentList({ data }) {
@@ -87,7 +88,7 @@ function AppointmentList({ data }) {
       <ul className="portal-appointments">
         {data.items.map((item) => (
           <li key={item.reference}>
-            <span className="portal-status">{statusLabels[item.status] || "Status unavailable"}</span>
+            <span className={`portal-status portal-status--${item.status}`}>{statusLabels[item.status] || "Status unavailable"}</span>
             <h2><Link to={`/portal/appointments/${item.reference}`}>{item.appointmentType}</Link></h2>
             <p>{dateTime(item.startsAt, data.clinicTimeZone)}</p>
             <p>{item.location} · {item.provider}</p>
@@ -100,7 +101,12 @@ function AppointmentList({ data }) {
 
 function Overview({ patient }) {
   const state = useData("/api/portal/overview", patient.reference);
-  return <DataState state={state}>{(data) => <AppointmentList data={data} />}</DataState>;
+  return <>
+    <section className="portal-welcome"><div><p className="eyebrow">Your care, in one place</p><h2>Welcome{patient.displayName ? `, ${patient.displayName}` : " back"}.</h2><p>Keep your details up to date and follow your appointment requests.</p></div><span className="portal-account-badge">Email verified</span></section>
+    <div className="portal-shortcuts"><Link to="/portal/profile"><strong>Your patient profile</strong><span>Update contact and health information</span></Link><Link to="/portal/account"><strong>Account &amp; security</strong><span>Manage passwords and active sessions</span></Link><Link to="/portal/link"><strong>Link a guest request</strong><span>Use a code provided by the practice</span></Link></div>
+    <div className="portal-section-heading"><h2>Upcoming appointments &amp; requests</h2><button className="text-button" disabled={state.loading} onClick={state.reload}>Refresh status</button></div>
+    <DataState state={state}>{data => <AppointmentList data={data} />}</DataState><Link to="/portal/appointments">View all appointment history</Link>
+  </>;
 }
 
 function History({ patient }) {
@@ -111,6 +117,7 @@ function History({ patient }) {
     <DataState state={state}>
       {(data) => (
         <>
+          <div className="portal-section-heading"><p>Page {page + 1}</p><button className="text-button" onClick={state.reload}>Refresh history</button></div>
           <AppointmentList data={data} />
           <div className="button-row">
             <Button type="button" variant="outline" disabled={!page} onClick={() => setPage(page - 1)}>Previous</Button>
@@ -151,10 +158,12 @@ function LinkGuest() {
       </Notice>
       <form onSubmit={async (event) => {
         event.preventDefault();
+        if (busy) return;
+        if (!/^[a-f0-9]{64}$/.test(code.trim())) return setMessage("Enter the complete 64-character linking code supplied by the practice.");
         if (!captcha) return setMessage("Complete the security check.");
         setBusy(true);
         try {
-          const result = await post("/api/portal/link", { code, captchaToken: captcha });
+          const result = await post("/api/portal/link", { code: code.trim(), captchaToken: captcha });
           setCode("");
           setMessage(result.message);
         } catch (error) {
@@ -168,12 +177,12 @@ function LinkGuest() {
         <div className="field">
           <label htmlFor="guest-link-code">Account-bound linking code</label>
           <input
-            id="guest-link-code" type="password" autoComplete="off"
+            id="guest-link-code" type="password" autoComplete="off" maxLength={64} spellCheck={false}
             required value={code} onChange={(event) => setCode(event.target.value)}
           />
         </div>
         <Recaptcha ref={widget} onToken={setCaptcha} />
-        <div className="button-row"><Button type="submit" disabled={busy}>Link verified request</Button></div>
+        <div className="button-row"><Button type="submit" disabled={busy || !captcha || !code.trim()}>Link verified request</Button></div>
         <p role="status">{message}</p>
       </form>
     </>
@@ -189,9 +198,12 @@ function Security() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const widget = useRef(null);
+  const sending = useRef(false);
 
   async function action(path, body, needsCaptcha = false) {
+    if (sending.current) return;
     if (needsCaptcha && !captcha) return setMessage("Complete the security check.");
+    sending.current = true;
     setBusy(true);
     setMessage("");
 
@@ -207,6 +219,7 @@ function Security() {
     } catch (error) {
       setMessage(error.message);
     } finally {
+      sending.current = false;
       setBusy(false);
       if (needsCaptcha) {
         setCaptcha("");
@@ -217,6 +230,7 @@ function Security() {
 
   return (
     <>
+      {message && <div className="portal-feedback" role="status">{message}</div>}
       <section className="portal-block">
         <h2>{auth.patient.hasPassword ? "Change password" : "Set a password"}</h2>
         <form onSubmit={(event) => {
@@ -237,7 +251,7 @@ function Security() {
               onChange={(event) => setNewPassword(event.target.value)} />
           </div>
           <Recaptcha ref={widget} onToken={setCaptcha} />
-          <div className="button-row"><Button type="submit" disabled={busy}>Update password</Button></div>
+          <div className="button-row"><Button type="submit" disabled={busy || !captcha || !newPassword || (auth.patient.hasPassword && !currentPassword)}>Update password</Button></div>
         </form>
 
         {auth.googleClientId && (
@@ -280,12 +294,11 @@ function Security() {
           )}
         </DataState>
         <Button type="button" variant="outline" disabled={busy}
-          onClick={() => action("/api/portal/sessions/revoke-all", {})}>
+          onClick={() => { if (window.confirm("Sign out all devices, including this one?")) action("/api/portal/sessions/revoke-all", {}); }}>
           Sign out all sessions
         </Button>
       </section>
 
-      <p role="status">{message}</p>
     </>
   );
 }
@@ -293,6 +306,16 @@ function Security() {
 export default function Portal() {
   const auth = useAuth();
   const { pathname } = useLocation();
+  const [logoutError, setLogoutError] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
+  const main = useRef(null);
+  useEffect(() => { main.current?.focus({preventScroll:true}); window.scrollTo({top:0,behavior:"instant"}); }, [pathname, Boolean(auth.patient)]);
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true); setLogoutError("");
+    try { await auth.logout(); } catch (error) { setLogoutError(error.message); }
+    finally { setSigningOut(false); }
+  }
 
   if (auth.loading) {
     return <div className="container section"><p role="status">Checking your session…</p></div>;
@@ -306,7 +329,7 @@ export default function Portal() {
         </PageIntro>
         <section className="section">
           <div className="container reading-width">
-            {auth.error && <Notice title="Account services unavailable">{auth.error}</Notice>}
+            {auth.error && <Notice title="Account services unavailable">{auth.error}<button className="text-button" onClick={auth.refresh}>Retry connection</button></Notice>}
             {pathname !== "/portal" && (
               <Notice title="Sign in again">
                 Your session may have expired. Unsaved work may need to be entered again.
@@ -338,9 +361,9 @@ export default function Portal() {
   let content = detail
     ? <Detail patient={auth.patient} reference={detail[1]} />
     : pathname === "/portal/appointments" ? <History patient={auth.patient} />
-    : pathname === "/portal/profile" ? <Profile />
-    : pathname === "/portal/account" ? <Security />
-    : pathname === "/portal/link" ? <LinkGuest />
+    : pathname === "/portal/profile" ? <Profile key={auth.patient.reference} />
+    : pathname === "/portal/account" ? <Security key={auth.patient.reference} />
+    : pathname === "/portal/link" ? <LinkGuest key={auth.patient.reference} />
     : pathname === "/portal" ? <Overview patient={auth.patient} />
     : <Notice title="Page unavailable">Return to the portal overview.</Notice>;
 
@@ -351,8 +374,8 @@ export default function Portal() {
         <div className="container">
           <Brand />
           <span>Patient portal</span>
-          <button type="button" className="text-button" onClick={() => auth.logout().catch(() => {})}>
-            Sign out
+          <button type="button" className="text-button" disabled={signingOut} onClick={signOut}>
+            {signingOut ? "Signing out�" : "Sign out"}
           </button>
         </div>
       </header>
@@ -367,16 +390,17 @@ export default function Portal() {
         </div>
       </nav>
 
-      <main id="main-content" className="container section" tabIndex="-1">
+      <main id="main-content" className="container section portal-main" tabIndex="-1" ref={main}>
         <div className="section-topline">
           <div><p className="eyebrow">Patient account</p><h1>{title}</h1></div>
           <Button to="/request-an-appointment">Request an appointment</Button>
         </div>
+        {logoutError && <Notice title="Sign-out could not be verified" tone="error">{logoutError}</Notice>}
         {content}
       </main>
 
       <footer className="portal-footer container">
-        <p>{auth.supportContact}</p>
+        <p>Need help? <a href="tel:+14323370555">{practice.phone}</a></p><p className="help">Portal updates are not monitored for emergencies. For a medical emergency, call 911.</p>
         <div className="inline-links">
           <Link to="/privacy">Privacy</Link>
           <Link to="/accessibility">Accessibility</Link>

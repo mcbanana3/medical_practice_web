@@ -38,6 +38,8 @@ export default function PatientProfile() {
   const auth = useAuth();
 
   const [form, setForm] = useState(null);
+  const [savedForm, setSavedForm] = useState("");
+  const [updatedAt, setUpdatedAt] = useState(null);
   const [version, setVersion] = useState(0);
   const [editable, setEditable] = useState(false);
   const [email, setEmail] = useState("");
@@ -57,16 +59,21 @@ export default function PatientProfile() {
 
     setLoading(true);
     setError("");
+    setForm(null);
 
     request("/api/portal/profile", {
       signal: controller.signal
     })
       .then((data) => {
-        setForm({
+        if (controller.signal.aborted) return;
+        const initial = {
           ...data.details,
           heightCm: data.details.heightCm ?? "",
           weightKg: data.details.weightKg ?? ""
-        });
+        };
+        setForm(initial);
+        setSavedForm(JSON.stringify(initial));
+        setUpdatedAt(data.updatedAt);
 
         setVersion(data.version);
         setEditable(data.editable);
@@ -90,6 +97,13 @@ export default function PatientProfile() {
     if (error) errorRef.current?.focus();
   }, [error]);
 
+  const dirty = Boolean(form && JSON.stringify(form) !== savedForm);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = event => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
   function change(key, value) {
     setForm((current) => ({
       ...current,
@@ -136,6 +150,8 @@ export default function PatientProfile() {
       });
 
       setVersion(result.version);
+      setSavedForm(JSON.stringify(form));
+      setUpdatedAt(new Date().toISOString());
       await auth.refresh();
       setMessage(result.message);
     } catch (failure) {
@@ -157,6 +173,7 @@ export default function PatientProfile() {
           id={`profile-${key}`}
           type={type}
           maxLength={maxLength}
+          autoComplete={key === "displayName" ? "name" : key === "address" ? "street-address" : key === "dateOfBirth" ? "bday" : "off"}
           step={type === "number" ? "0.1" : undefined}
           min={type === "number" ? "0.1" : undefined}
           max={
@@ -225,6 +242,7 @@ export default function PatientProfile() {
             </Notice>
           )}
 
+          <p className="help" role="status">{dirty ? "You have unsaved changes." : updatedAt ? `Last saved: ${new Date(updatedAt).toLocaleString()}` : "Complete any details you would like to share."}</p>
           <form onSubmit={save}>
             <fieldset disabled={busy || !editable}>
               <legend>General and contact information</legend>
@@ -287,7 +305,7 @@ export default function PatientProfile() {
             <div className="button-row">
               <Button
                 type="submit"
-                disabled={busy || !editable}
+                disabled={busy || !editable || !dirty}
               >
                 {busy ? "Saving…" : "Save my details"}
               </Button>
@@ -297,6 +315,7 @@ export default function PatientProfile() {
                 variant="outline"
                 disabled={busy}
                 onClick={() => {
+                  if (dirty && !window.confirm("Discard unsaved profile changes and reload the saved profile?")) return;
                   setMessage("");
                   setReload((value) => value + 1);
                 }}
