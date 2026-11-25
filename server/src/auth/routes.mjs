@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { OAuth2Client } from "google-auth-library";
 import { z } from "zod";
 import { mountPatientRecords } from "../patient-records.mjs";
+import { validEmail } from "../../../shared/contact.js";
 import { phoneSchema } from "../phone.mjs";
 
 import { config } from "../config.mjs";
@@ -26,6 +27,7 @@ import {
 import { queueAccountMail } from "./mail.mjs";
 
 const emailSchema = z.string().trim().email().max(254)
+  .refine(validEmail, "Enter a valid email address.")
   .transform((value) => value.toLowerCase());
 const passwordSchema = z.string().min(8).max(128);
 const captchaSchema = z.string().min(1).max(4096);
@@ -795,7 +797,9 @@ export function patientRouter({
       typeId: z.number().int().positive(),
       startsAt: z.string().datetime(),
       name: z.string().trim().min(1).max(100),
-      phone: phoneSchema,
+      email: emailSchema,
+      phone: phoneSchema.refine(value => Boolean(value), "Phone is required."),
+      reason: z.string().trim().min(1).max(1000),
       captchaToken: captchaSchema
     }).strict().parse(request.body);
 

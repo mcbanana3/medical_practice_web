@@ -31,11 +31,12 @@ class Client {
   cookie = "";
   csrf = "";
 
-  async call(path, body) {
+  async call(path, body, extraHeaders = {}) {
     const response = await fetch(`${base}${path}`, {
       method: body === undefined ? "GET" : "POST",
       headers: {
         Origin: config.origin,
+        ...extraHeaders,
         ...(this.cookie ? { Cookie: this.cookie } : {}),
         ...(body === undefined ? {} : {
           "Content-Type": "application/json",
@@ -208,4 +209,24 @@ test("logout removes authenticated access", async () => {
 
   assert.equal((await client.call("/api/auth/logout", {})).status, 200);
   assert.equal((await client.call("/api/portal/appointments")).status, 401);
+});
+
+test("returning patient booking validates contacts and links the 30-minute request", async () => {
+ const client = await verifiedClient("booking@example.test");
+ const metadata = (await client.call("/api/booking/options")).data;
+ const option = metadata.options[0];
+ const date = metadata.dateChoices.find(value => value > metadata.minDate && ![0,6].includes(new Date(value+"T12:00:00Z").getUTCDay()));
+ const params = new URLSearchParams({locationId:option.locationId,providerId:option.providerId,typeId:option.typeId,date});
+ const slot = (await client.call("/api/booking/availability?"+params)).data.slots[0];
+ const body = {locationId:option.locationId,providerId:option.providerId,typeId:option.typeId,startsAt:slot.startsAt,name:"Test patient",email:"booking@example.test",phone:"4323370555",reason:"Annual checkup",captchaToken:"test"};
+ const headers = {"Idempotency-Key":crypto.randomUUID()};
+ assert.equal((await client.call("/api/portal/requests",{...body,phone:"+1 416 555 0123"},headers)).status,400);
+ assert.equal((await client.call("/api/portal/requests",{...body,email:"a..b@example.com"},headers)).status,400);
+ const created = await client.call("/api/portal/requests",body,headers);
+ assert.equal(created.status,201);
+ assert.equal((await client.call("/api/portal/requests",body,headers)).status,200);
+ const detail = await client.call("/api/portal/appointments/"+created.data.receipt.reference);
+ assert.equal(detail.status,200);
+ assert.equal(new Date(detail.data.endsAt)-new Date(detail.data.startsAt),1800000);
+ assert.equal(detail.data.status,"pending");
 });

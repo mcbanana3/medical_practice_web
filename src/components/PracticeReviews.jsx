@@ -53,9 +53,13 @@ function ErrorMessage({ error }) {
   ) : null;
 }
 
+function Stars({ rating }) {
+ return <span className="review-stars" role="img" aria-label={`${rating} out of 5 stars`}>{[1,2,3,4,5].map(n => <span key={n} aria-hidden="true" className={n <= rating ? "is-filled" : ""}>&#9733;</span>)}</span>;
+}
 export function PublishedReviews({ limit = 12, paginated = true }) {
   const size = Math.max(1, Math.min(24, Number(limit) || 12));
   const [offset, setOffset] = useState(0);
+  const [sort, setSort] = useState("newest");
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState({ items: [], nextOffset: null });
   const [loading, setLoading] = useState(true);
@@ -65,7 +69,7 @@ export function PublishedReviews({ limit = 12, paginated = true }) {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    request(`?limit=${size}&offset=${offset}`, undefined, controller.signal)
+    request(`?limit=${size}&offset=${offset}&sort=${sort}`, undefined, controller.signal)
       .then(result => {
         if (!controller.signal.aborted) setData(result);
       })
@@ -76,7 +80,7 @@ export function PublishedReviews({ limit = 12, paginated = true }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [size, offset, revision]);
+  }, [size, offset, revision, sort]);
 
   useEffect(() => {
     const refresh = () => setRevision(value => value + 1);
@@ -93,7 +97,8 @@ export function PublishedReviews({ limit = 12, paginated = true }) {
   return (
     <div className="live-reviews" aria-busy={loading}>
       <div className="reviews-live-toolbar">
-        <p className="help">Only administrator-approved submissions appear here.</p>
+        <p className="help">Feedback shared by our community</p>
+ {paginated && <label className="review-sort">Sort by<select value={sort} onChange={e => { setSort(e.target.value); setOffset(0); }}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="highest">Highest rated</option><option value="lowest">Lowest rated</option></select></label>}
         <button type="button" disabled={loading}
           onClick={() => setRevision(value => value + 1)}>
           Refresh reviews
@@ -111,17 +116,10 @@ export function PublishedReviews({ limit = 12, paginated = true }) {
           <div className="reviews-grid">
             {data.items.map(review => (
               <article className="review-card" key={review.id}>
-                <div className="review-card-top">
-                  <span className="review-type">Website review</span>
-                </div>
+                <header className="review-card-top"><span className="review-avatar" aria-hidden="true">{review.displayName.trim().slice(0,1).toUpperCase()}</span><div className="review-identity"><strong>{review.displayName}</strong><time dateTime={review.createdAt || review.approvedAt}>{new Intl.DateTimeFormat("en-US", {month:"long",day:"numeric",year:"numeric",timeZone:"America/Chicago"}).format(new Date(review.createdAt || review.approvedAt))}</time></div></header>
+                {review.rating !== null ? <Stars rating={review.rating} /> : <span className="help">No rating provided</span>}
                 <blockquote><p>{review.text}</p></blockquote>
-                <footer className="review-card-footer">
-                  <strong>{review.displayName}</strong>
-                  {review.rating !== null && (
-                    <span>Submitted rating: {review.rating} out of 5</span>
-                  )}
-                  <span className="help">{review.sourceLabel}</span>
-                </footer>
+                <footer className="review-card-footer"><span className="review-published-badge">Administrator approved</span><span className="help">Website review</span></footer>
               </article>
             ))}
           </div>
@@ -149,7 +147,7 @@ export function ReviewForm() {
   const captcha = useRef(null);
   const submissionKey = useRef("");
   const [pairs, setPairs] = useState([]);
-  const [pair, setPair] = useState("");
+  const [rating, setRating] = useState(0);
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -166,8 +164,7 @@ export function ReviewForm() {
       .then(data => {
         if (controller.signal.aborted) return;
         setPairs(data.items);
-        setPair(data.items.length === 1
-          ? `${data.items[0].locationId}:${data.items[0].providerId}` : "");
+
       })
       .catch(failure => {
         if (!controller.signal.aborted) setError(failure);
@@ -210,7 +207,7 @@ export function ReviewForm() {
               setError(null);
             }}>Write another review</button>
           </div>
-        ) : loading ? <p role="status">Loading review form…</p> : !pairs.length ? (
+        ) : loading ? <p role="status">Loading review form…</p> : pairs.length !== 1 ? (
           <div>
             <p>Review submission is temporarily unavailable.</p>
             <button type="button" onClick={() => setRevision(value => value + 1)}>Retry</button>
@@ -220,10 +217,8 @@ export function ReviewForm() {
             event.preventDefault();
             const form = event.currentTarget;
             const fields = Object.fromEntries(new FormData(form));
-            const selected = pairs.find(item =>
-              `${item.locationId}:${item.providerId}` === pair
-            );
-            if (!selected || !token || busy) return;
+            const selected = pairs.length === 1 ? pairs[0] : null;
+            if (!selected || !token || busy || !rating) return;
             setBusy(true);
             setError(null);
             try {
@@ -234,12 +229,13 @@ export function ReviewForm() {
                 providerId: Number(selected.providerId),
                 displayName: fields.displayName || "",
                 text: fields.text,
-                rating: fields.rating ? Number(fields.rating) : null,
+                rating,
                 publicationConsent: true,
                 captchaToken: token
               });
               setSaved(result);
               form.reset();
+              setRating(0);
             } catch (failure) {
               setError(failure);
             } finally {
@@ -250,27 +246,10 @@ export function ReviewForm() {
           }}>
             <fieldset disabled={busy}>
               <legend>Review details</legend>
-              <label htmlFor={prefix + "-pair"}>Location / provider</label>
-              <select id={prefix + "-pair"} required value={pair}
-                onChange={e => setPair(e.target.value)}>
-                <option value="">Choose a location and provider</option>
-                {pairs.map(item => (
-                  <option key={`${item.locationId}:${item.providerId}`}
-                    value={`${item.locationId}:${item.providerId}`}>
-                    {item.location} — {item.provider}
-                  </option>
-                ))}
-              </select>
               <label htmlFor={prefix + "-name"}>Public display name — optional</label>
               <input id={prefix + "-name"} name="displayName" maxLength={80}
                 autoComplete="off" placeholder="Anonymous if left blank" />
-              <label htmlFor={prefix + "-rating"}>Rating — optional</label>
-              <select id={prefix + "-rating"} name="rating" defaultValue="">
-                <option value="">No rating</option>
-                {[1, 2, 3, 4, 5].map(value => (
-                  <option key={value} value={value}>{value} out of 5</option>
-                ))}
-              </select>
+              <fieldset className="review-rating-picker"><legend>Your rating (required)</legend><div className="review-rating-options">{[1,2,3,4,5].map(n => <label key={n} className={n <= rating ? "is-filled" : ""}><input type="radio" name="rating" value={n} required checked={rating === n} onChange={() => setRating(n)} /><span aria-hidden="true">&#9733;</span><span className="sr-only">{n} {n === 1 ? "star" : "stars"}</span></label>)}</div><p className="help" aria-live="polite">{rating ? `${rating} out of 5 stars` : "Select a star to rate your experience"}</p></fieldset>
               <label htmlFor={prefix + "-text"}>Your review</label>
               <textarea id={prefix + "-text"} name="text" required
                 minLength={10} maxLength={3000} rows={6} />
@@ -278,11 +257,11 @@ export function ReviewForm() {
                 <input type="checkbox" required />
                 <span>
                   I consent to public display of my submitted name, review, and
-                  optional rating if approved.
+                  rating if approved.
                 </span>
               </label>
               <Recaptcha ref={captcha} onToken={onToken} />
-              <button disabled={!token || !pair || busy}>
+              <button disabled={!token || !rating || busy}>
                 {busy ? "Submitting…" : "Submit for approval"}
               </button>
             </fieldset>

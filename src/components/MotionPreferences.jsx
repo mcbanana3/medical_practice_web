@@ -4,10 +4,9 @@ import { useLocation } from "react-router-dom";
 export default function MotionPreferences() {
   const { pathname } = useLocation();
 
-  const [enabled, setEnabled] = useState(true);
   const [systemReduced, setSystemReduced] = useState(false);
 
-  const active = enabled && !systemReduced;
+  const active = !systemReduced;
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -66,23 +65,5 @@ export default function MotionPreferences() {
     };
   }, [active, pathname]);
 
-  return (
-    <div className="motion-strip">
-      <div className="container motion-strip-inner">
-        <span>Visual preferences</span>
-        <button
-          type="button"
-          aria-pressed={!active}
-          disabled={systemReduced}
-          onClick={() => setEnabled((current) => !current)}
-        >
-          {systemReduced
-            ? "System reduced motion enabled"
-            : active
-              ? "Pause decorative animation"
-              : "Enable decorative animation"}
-        </button>
-      </div>
-    </div>
-  );
+  return null;
 }

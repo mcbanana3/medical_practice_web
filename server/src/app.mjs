@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { z } from "zod";
+import { validEmail } from "../../shared/contact.js";
 import { phoneSchema } from "./phone.mjs";
 
 import { config } from "./config.mjs";
@@ -27,8 +28,9 @@ const contextSchema = z.object({
 const requestSchema = contextSchema.extend({
   startsAt: z.string().datetime(),
   name: z.string().trim().min(1).max(100),
-  phone: phoneSchema,
-  email: z.string().trim().email().max(254),
+  phone: phoneSchema.refine(value => Boolean(value), "Phone is required."),
+      reason: z.string().trim().min(1).max(1000),
+  email: z.string().trim().email().max(254).refine(validEmail, "Enter a valid email address."),
   captchaToken: z.string().min(1).max(4096)
 }).strict();
 
@@ -202,7 +204,7 @@ export function createApp({
 
       for (const issue of error.issues) {
         const field = issue.path[0];
-        if (["name", "email", "captchaToken"].includes(field)) {
+        if (["name", "email", "phone", "reason", "captchaToken"].includes(field)) {
           fields[field] = "Please check this field.";
         }
       }

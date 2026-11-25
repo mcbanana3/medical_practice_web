@@ -44,18 +44,6 @@ export default function Header() {
 
   return (
     <header className="site-header" onKeyDown={escape}>
-      {!site.publicationReady && (
-        <div className="preview-banner">
-          <div className="container">
-            <strong>Website setup in progress</strong>
-            <span>
-              Practice facts require approval. Booking operates only when
-              the configured booking service is enabled.
-            </span>
-          </div>
-        </div>
-      )}
-
       <MotionPreferences />
 
       <div className="container header-inner">

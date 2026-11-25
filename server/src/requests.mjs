@@ -208,7 +208,8 @@ export async function createRequest(input, key) {
           encrypt({
             name: input.name,
             email: input.email,
-            phone: input.phone || ""
+            phone: input.phone || "",
+            reason: input.reason || ""
           }),
           JSON.stringify(receipt)
         ],

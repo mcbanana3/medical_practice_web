@@ -1,20 +1,6 @@
+import { normalizeUsPhone } from "../../shared/contact.js";
 export function phoneError(input) {
-  const value = String(input || "").trim();
-
-  if (!value) return "";
-
-  const digits = value.replace(/\D/g, "");
-
-  if (
-    value.length > 32 ||
-    !/^\+?[\d(). -]+$/.test(value) ||
-    digits.length < 7 ||
-    digits.length > 15
-  ) {
-    return "Enter a valid contact number.";
-  }
-
-  return "";
+  return !String(input || "").trim() || normalizeUsPhone(input) ? "" : "Enter a valid US phone number, including its area code.";
 }
 
 export default function PhoneField({
@@ -23,15 +9,17 @@ export default function PhoneField({
   value,
   onChange,
   error = "",
-  disabled = false
+  disabled = false,
+  required = false
 }) {
   return (
     <div className="field">
-      <label htmlFor={id}>{label} (optional)</label>
+      <label htmlFor={id}>{label}</label>
 
       <input
         id={id}
         type="tel"
+        required={required}
         inputMode="tel"
         autoComplete="tel"
         maxLength={32}
@@ -43,7 +31,7 @@ export default function PhoneField({
       />
 
       <p id={`${id}-help`} className="help">
-        Include the country code if outside the US.
+        US numbers only. Enter 10 digits, or include +1.
       </p>
 
       {error && (

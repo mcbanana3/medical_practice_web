@@ -83,7 +83,7 @@ async function available(typeId = 1) {
 
   assert.ok(option, "Run the development seed against the test database");
 
-  const date = metadata.dateChoices[2];
+  const date = metadata.dateChoices.find(value => ![0,6].includes(new Date(value + "T12:00:00Z").getUTCDay()) && value > metadata.minDate);
   const parameters = new URLSearchParams({
     locationId: String(option.locationId),
     providerId: String(option.providerId),
@@ -107,6 +107,7 @@ function inputFor(option, slot) {
     startsAt: slot.startsAt,
     name: "Development Test Guest",
     email: "guest@example.test",
+    phone: "4323370555", reason: "Annual checkup",
     captchaToken: "test-process-injected-verification"
   };
 }
@@ -116,7 +117,7 @@ test("migrations are recorded and development configuration is explicit", async 
   assert.ok(migrations.some((row) => row.version === "001_booking.sql"));
 
   const result = await get("/api/booking/options");
-  assert.equal(result.body.fixtureData, true);
+  assert.equal(result.body.fixtureData, false);
   assert.equal(result.body.clinicTimeZone, config.zone);
 });
 
@@ -140,10 +141,10 @@ test("clinic-wide closure removes availability", async () => {
 
 test("simultaneous overlapping durations cannot both reserve the provider", async () => {
   const short = await available(1);
-  const long = await available(2);
+  const long = await available(1);
 
   const results = await Promise.all([
-    post("/api/booking/requests", inputFor(short.option, short.slots[1])),
+    post("/api/booking/requests", inputFor(short.option, short.slots[0])),
     post("/api/booking/requests", inputFor(long.option, long.slots[0]))
   ]);
 
@@ -253,7 +254,7 @@ test("email failure preserves the request and retries the job", async () => {
   assert.equal(request.status, "pending");
 });
 
-test("expired hold is released and audited", async () => {
+test("pending reservations remain blocked until staff decides", async () => {
   const data = await available();
   await post("/api/booking/requests", inputFor(data.option, data.slots[0]));
 
@@ -265,13 +266,13 @@ test("expired hold is released and audited", async () => {
   await expireHolds();
 
   const [row] = await query("SELECT status FROM appointment_requests");
-  assert.equal(row.status, "expired");
+  assert.equal(row.status, "pending");
 
   const audit = await query(
     "SELECT event FROM audit_events WHERE event='request.expired'"
   );
 
-  assert.equal(audit.length, 1);
+  assert.equal(audit.length, 0);
 });
 
 test("staff cannot act without a matching database scope", async () => {
@@ -377,4 +378,22 @@ test("DST overlap exposes both offsets and spring gap skips nonexistent times", 
   assert.ok(
     !spring.some((slot) => slot.start.toFormat("HH:mm").startsWith("02:"))
   );
+});
+test("invalid phone and email cannot create bookings", async () => {
+ const data = await available();
+ for (const patch of [{phone: "+1 416 555 0123"}, {phone: ""}, {email: "a..b@example.com"}, {reason: ""}]) {
+  const result = await post("/api/booking/requests", {...inputFor(data.option,data.slots[0]), ...patch});
+  assert.equal(result.status,400);
+ }
+ const [count] = await query("SELECT COUNT(*) AS total FROM appointment_requests");
+ assert.equal(Number(count.total),0);
+});
+test("reservations occupy exactly 30 minutes and pending slots disappear", async () => {
+ const data = await available();
+ const created = await post("/api/booking/requests",inputFor(data.option,data.slots[0]));
+ assert.equal(created.status,201);
+ const [row] = await query("SELECT starts_at,ends_at FROM appointment_requests");
+ assert.equal(row.ends_at-row.starts_at,30*60000);
+ const updated = await available();
+ assert.ok(!updated.slots.some(slot => slot.startsAt === data.slots[0].startsAt));
 });

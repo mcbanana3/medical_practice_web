@@ -9,13 +9,17 @@ import PageIntro from "../components/PageIntro.jsx";
 import Recaptcha from "../components/Recaptcha.jsx";
 import "./booking-live.css";
 
+import { useAuth } from "../auth/AuthProvider.jsx";
+import { post as patientPost } from "../auth/client.js";
+import { validEmail } from "../../shared/contact.js";
+import { practice } from "../content.js";
 import PhoneField, {
   phoneError
 } from "../components/PhoneField.jsx";
 
 const API = import.meta.env.VITE_API_BASE_URL || "";
-const RETRY_STORAGE = "appointment-submission-retry-key";
-const steps = ["Patient pathway", "Appointment context", "Date and time", "Contact details", "Review"];
+const RETRY_STORAGE_PREFIX = "appointment-submission-v3";
+const steps = ["Date and time", "Contact details", "Review"];
 
 async function api(path, options = {}) {
   let response;
@@ -53,55 +57,19 @@ async function api(path, options = {}) {
   return data;
 }
 
-function uniqueOptions(rows, idKey, nameKey) {
-  return [...new Map(
-    rows.map((row) => [String(row[idKey]), {
-      id: String(row[idKey]),
-      name: row[nameKey]
-    }])
-  ).values()];
-}
-
-function resolveChoice(options, current) {
-  if (options.some((option) => option.id === current)) return current;
-  return options.length === 1 ? options[0].id : "";
-}
-
-function Choice({ id, label, options, value, onChange }) {
-  if (options.length === 1) {
-    return <Facts items={[[label, options[0].name]]} />;
-  }
-
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label} (required)</label>
-      <select
-        id={id}
-        value={value}
-        disabled={!options.length}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">Choose {label.toLowerCase()}</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>{option.name}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 export default function Booking() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const auth = useAuth();
+  const RETRY_STORAGE = `${RETRY_STORAGE_PREFIX}:${auth.patient?.reference || "guest"}`;
+  const [step, setStep] = useState(2);
   const [metadata, setMetadata] = useState(null);
   const [metaLoading, setMetaLoading] = useState(true);
   const [reload, setReload] = useState(0);
-  const [context, setContext] = useState({ location: "", type: "", provider: "" });
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState([]);
   const [slot, setSlot] = useState(null);
   const [slotLoading, setSlotLoading] = useState(false);
-  const [contact, setContact] = useState({ name: "", email: "", phone: "" });
+  const [contact, setContact] = useState({ name: "", email: "", phone: "", reason: "" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -115,15 +83,10 @@ export default function Booking() {
   const title = useRef(null);
   const previousStep = useRef(0);
 
-  const rows = metadata?.options || [];
-  const locations = uniqueOptions(rows, "locationId", "locationName");
-  const locationRows = rows.filter((row) => String(row.locationId) === context.location);
-  const types = uniqueOptions(locationRows, "typeId", "typeName");
-  const typeRows = locationRows.filter((row) => String(row.typeId) === context.type);
-  const providers = uniqueOptions(typeRows, "providerId", "providerName");
-  const chosen = typeRows.find((row) => String(row.providerId) === context.provider);
-
+  useEffect(() => { if (auth.patient) setContact(current => ({ ...current, name: current.name || auth.patient.displayName || "", email: auth.patient.email })); }, [auth.patient?.reference]);
+  const chosen = metadata?.options?.length === 1 ? metadata.options[0] : null;
   useEffect(() => {
+    if (auth.loading) return;
     try {
       const key = sessionStorage.getItem(RETRY_STORAGE);
       if (/^[a-f0-9-]{36}$/i.test(key || "")) {
@@ -137,7 +100,7 @@ export default function Booking() {
     } catch {
       // The active page can still retain its retry key in memory.
     }
-  }, []);
+  }, [auth.loading, RETRY_STORAGE]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -157,28 +120,6 @@ export default function Booking() {
 
     return () => controller.abort();
   }, [reload]);
-
-  useEffect(() => {
-    setContext((current) => {
-      const location = resolveChoice(locations, current.location);
-      const matchingLocation = rows.filter((row) => String(row.locationId) === location);
-      const type = resolveChoice(
-        uniqueOptions(matchingLocation, "typeId", "typeName"),
-        current.type
-      );
-      const matchingType = matchingLocation.filter((row) => String(row.typeId) === type);
-      const provider = resolveChoice(
-        uniqueOptions(matchingType, "providerId", "providerName"),
-        current.provider
-      );
-
-      return (
-        location === current.location &&
-        type === current.type &&
-        provider === current.provider
-      ) ? current : { location, type, provider };
-    });
-  }, [metadata, context.location, context.type, context.provider]);
 
   useEffect(() => {
     setSlot(null);
@@ -253,14 +194,16 @@ export default function Booking() {
 
     const next = {};
 
-    if (step === 1 && !chosen) next.context = "Choose a valid appointment combination.";
+    if (step === 2 && !chosen) next.time = "Online booking is unavailable. Please call the practice.";
     if (step === 2) {
       if (!date) next.date = "Choose a date.";
       if (!slot) next.time = "Choose a currently available time.";
     }
     if (step === 3) {
+      if (!contact.phone.trim()) next.phone = "Enter your phone number.";
+      if (!contact.reason.trim()) next.reason = "Briefly describe the reason for your visit.";
       if (!contact.name.trim()) next.name = "Enter your name.";
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) {
+      if (!validEmail(contact.email)) {
         next.email = "Enter a valid email address.";
       }
       const invalidPhone = phoneError(contact.phone);
@@ -298,7 +241,8 @@ export default function Booking() {
           startsAt: slot.startsAt,
           name: contact.name.trim(),
           email: contact.email.trim(),
-          phone: contact.phone.trim()
+          phone: contact.phone.trim(),
+          reason: contact.reason.trim()
         }
       };
     }
@@ -314,14 +258,14 @@ export default function Booking() {
 
     try {
       const result = recovering
-        ? await api("/api/booking/receipt", {
+        ? await (auth.patient ? patientPost("/api/portal/requests/receipt", { idempotencyKey: pending.current.key, captchaToken: captcha }) : api("/api/booking/receipt", {
           method: "POST",
           body: JSON.stringify({
             idempotencyKey: pending.current.key,
             captchaToken: captcha
           })
-        })
-        : await api("/api/booking/requests", {
+        }))
+        : auth.patient ? await patientPost("/api/portal/requests", { ...pending.current.body, captchaToken: captcha }, { "Idempotency-Key": pending.current.key }) : await api("/api/booking/requests", {
           method: "POST",
           headers: { "Idempotency-Key": pending.current.key },
           body: JSON.stringify({
@@ -334,14 +278,14 @@ export default function Booking() {
 
       navigate("/request-an-appointment/received", {
         replace: true,
-        state: { receipt: result.receipt }
+        state: { receipt: result.receipt, bookingMode: auth.patient ? "patient" : "guest" }
       });
     } catch (error) {
       setMessage(error.message);
 
       if (
         wasUncertain ||
-        error.status === 0 ||
+        !error.status ||
         error.status >= 500 ||
         error.code === "IDEMPOTENCY_MISMATCH"
       ) {
@@ -363,6 +307,8 @@ export default function Booking() {
 
         if (serverFields.name) contactErrors.name = serverFields.name;
         if (serverFields.email) contactErrors.email = serverFields.email;
+        if (serverFields.phone) contactErrors.phone = serverFields.phone;
+        if (serverFields.reason) contactErrors.reason = serverFields.reason;
 
         if (Object.keys(contactErrors).length) {
           setErrors(contactErrors);
@@ -395,28 +341,19 @@ export default function Booking() {
         <div className="container">
           <EmergencyNotice />
 
-          {metadata?.fixtureData && (
-            <Notice title="Development fixtures — not a real practice schedule">
-              Use invented test contact details only. These location, provider,
-              appointment-type, and schedule records are development fixtures.
-            </Notice>
-          )}
-
           <p className="help booking-storage-note">
-            Contact fields stay in page memory. An opaque retry key is kept
-            in session storage to help verify an interrupted submission.
-            No contact details are stored there.
+            Choose a time, add your details, and send your request. We will contact you after staff review.
           </p>
 
           <ol className="booking-progress" aria-label="Appointment request steps">
             {steps.map((label, index) => (
               <li
                 key={label}
-                className={index === step ? "current" : index < step ? "complete" : ""}
-                aria-current={index === step ? "step" : undefined}
+                className={index === step - 2 ? "current" : index < step - 2 ? "complete" : ""}
+                aria-current={index === step - 2 ? "step" : undefined}
               >
                 <span className="progress-number" aria-hidden="true">
-                  {index < step ? <Icon name="check" /> : index + 1}
+                  {index < step - 2 ? <Icon name="check" /> : index + 1}
                 </span>
                 <span>{label}</span>
               </li>
@@ -425,8 +362,8 @@ export default function Booking() {
 
           <div className="booking-shell">
             <div className="booking-main">
-              <p className="eyebrow">Step {step + 1} of {steps.length}</p>
-              <h2 ref={title} tabIndex="-1">{steps[step]}</h2>
+              <p className="eyebrow">Step {step - 1} of {steps.length}</p>
+              <h2 ref={title} tabIndex="-1">{steps[step - 2]}</h2>
 
               {metaLoading && <p role="status">Loading appointment options…</p>}
 
@@ -462,72 +399,14 @@ export default function Booking() {
                 </div>
               )}
 
-              {step === 0 ? (
-                <>
-                  <p className="lead">Choose the path that works for you.</p>
-                  <div className="pathway-card">
-                    <h3>Continue without an account</h3>
-                    <p>You can request an appointment as a guest.</p>
-                    <Button
-                      type="button"
-                      disabled={!metadata || !rows.length}
-                      onClick={() => go(1)}
-                    >
-                      Continue as guest
-                    </Button>
-                  </div>
-                  <div className="pathway-card secondary">
-                    <h3>Returning patient</h3>
-                    <p>Secure portal access is a separate setup step. Guest requests remain available.</p>
-                    <Button to="/portal/login" variant="outline">Sign in</Button>
-                  </div>
-                  {!metaLoading && !rows.length && (
-                    <div className="booking-message">
-                      <Notice title="No request options are currently available">
-                        This does not mean the practice is closed.
-                        Use the verified practice contact for assistance.
-                      </Notice>
-                      <Button type="button" variant="outline" onClick={() => setReload((v) => v + 1)}>
-                        Retry availability setup
-                      </Button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <form noValidate onSubmit={submit}>
-                  {step === 1 && (
-                    <div id="booking-context" tabIndex="-1">
-                      <Choice
-                        id="booking-location" label="Location"
-                        options={locations} value={context.location}
-                        onChange={(location) => {
-                          clearRetry();
-                          setContext({ location, type: "", provider: "" });
-                        }}
-                      />
-                      <Choice
-                        id="booking-type" label="Appointment type"
-                        options={types} value={context.type}
-                        onChange={(type) => {
-                          clearRetry();
-                          setContext((value) => ({ ...value, type, provider: "" }));
-                        }}
-                      />
-                      <Choice
-                        id="booking-provider" label="Provider"
-                        options={providers} value={context.provider}
-                        onChange={(provider) => {
-                          clearRetry();
-                          setContext((value) => ({ ...value, provider }));
-                        }}
-                      />
-                      {errors.context && <p className="field-error">{errors.context}</p>}
-                    </div>
-                  )}
-
+              <form noValidate onSubmit={submit}>
                   {step === 2 && (
                     <>
-                      <Facts items={appointmentFacts} />
+                      <div className="booking-practice" aria-label="Appointment details">
+                        <strong>{practice.clinician}</strong>
+                        <span className="booking-practice-duration">30-minute appointment</span>
+                        <span className="booking-practice-address">{practice.address}</span>
+                      </div>
                       <div className="field">
                         <label htmlFor="booking-date">Clinic-local date (required)</label>
                         <input
@@ -557,7 +436,7 @@ export default function Booking() {
                               setDate(value);
                             }}
                           >
-                            {value}{date === value && <strong>Selected</strong>}
+                            {new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(value + "T12:00:00Z"))}{date === value && <strong>Selected</strong>}
                           </button>
                         ))}
                       </div>
@@ -566,7 +445,7 @@ export default function Booking() {
                         <p role="status">{slotLoading ? "Loading current available times…" : ""}</p>
                         {!slotLoading && !slots.length && (
                           <Notice title="No available times for this date">
-                            Choose another date or appointment context.
+                            Choose another date, or call the practice for help.
                           </Notice>
                         )}
 
@@ -602,8 +481,8 @@ export default function Booking() {
 
                   {step === 3 && (
                     <>
-                      <p>We need your name and email for this approved request pathway.</p>
-                      <p className="help">Do not include medical details.</p>
+                      <p>How can we reach you? All fields below are required.</p>
+                      <p className="help">Briefly tell us what you would like to discuss.</p>
                       <p><Link to="/privacy">Website Privacy Notice</Link></p>
 
                       {[
@@ -618,6 +497,8 @@ export default function Booking() {
                             autoComplete={autoComplete}
                             maxLength={field === "name" ? 100 : 254}
                             value={contact[field]}
+                            required
+                            readOnly={field === "email" && Boolean(auth.patient)}
                             onChange={(event) => {
                               clearRetry();
                               setContact((value) => ({
@@ -638,8 +519,10 @@ export default function Booking() {
                         </div>
                       ))}
 
-                      {/* Add PhoneField here, after Email */}
+<div className="field"><label htmlFor="booking-reason">Reason for visit (required)</label><textarea id="booking-reason" aria-invalid={Boolean(errors.reason)} aria-describedby="booking-reason-help" required maxLength={1000} rows={4} value={contact.reason} onChange={event => { clearRetry(); setContact(current => ({ ...current, reason: event.target.value })); }} /><p id="booking-reason-help" className="help">For example, an annual checkup, follow-up, or a new concern. Keep this brief; do not include sensitive records. This is not monitored for emergencies.</p>{errors.reason && <p className="field-error">{errors.reason}</p>}</div>
                       <PhoneField
+                        required
+                        label="Phone number (required)"
                         id="booking-phone"
                         value={contact.phone}
                         error={errors.phone}
@@ -666,17 +549,17 @@ export default function Booking() {
                         </p>
                       ) : (
                         <Facts items={[
-                          ...appointmentFacts,
+                          ...appointmentFacts.filter(([label]) => !["Location", "Appointment type", "Provider"].includes(label)),
                           ["Clinic-local date", date],
                           ["Time with UTC offset", slot?.label || "Not selected"],
                           ["Name", contact.name],
-                          ["Contact channel", contact.email]
+                          ["Email", contact.email], ["Reason for visit", contact.reason]
                         ]} />
                       )}
 
                       {!uncertain && (
                         <div className="inline-links">
-                          <button type="button" className="text-button" onClick={() => go(1)}>Edit context</button>
+
                           <button type="button" className="text-button" onClick={() => go(2)}>Edit date and time</button>
                           <button type="button" className="text-button" onClick={() => go(3)}>Edit contact details</button>
                         </div>
@@ -702,10 +585,10 @@ export default function Booking() {
                   <div className="form-actions">
                     <Button
                       type="button" variant="outline" arrow={false}
-                      disabled={busy || uncertain}
-                      onClick={() => go(step - 1)}
+                      disabled={busy || uncertain || step === 2}
+                      onClick={() => go(Math.max(2, step - 1))}
                     >Back</Button>
-                    <Button type="submit" disabled={busy}>
+                    <Button type="submit" disabled={busy || auth.loading || (!uncertain && (!chosen || metaLoading || slotLoading))}>
                       {busy
                         ? "Checking request…"
                         : step === 4
@@ -718,20 +601,19 @@ export default function Booking() {
                     {busy ? "Please wait. Do not submit another request." : ""}
                   </p>
                 </form>
-              )}
             </div>
 
             <aside className="booking-aside">
-              <p className="eyebrow">At a glance</p>
-              <h3>A request is the first step.</h3>
+              <span className="booking-duration">30 minute visit</span><p className="eyebrow">Your appointment</p>
+              <h3>{practice.clinician}</h3><p>{practice.address}</p>
               <p>Only staff approval produces a confirmed appointment.</p>
               <hr />
               <p>{date || "Date not selected"}</p>
-              <p>{slot?.label || "Time not selected"}</p>
-              <p>{metadata?.clinicTimeZone || "[PLACEHOLDER: clinic time zone]"}</p>
+              <p>{slot?.label || "Choose a time to continue"}</p>
+              <p>{metadata?.clinicTimeZone || practice.timeZone}</p>
               <hr />
-              <p>{metadata?.supportContact || "[PLACEHOLDER: verified booking support]"}</p>
-              <Link to="/contact">Contact information</Link>
+              <p>{practice.phone}</p>
+              <a href="tel:+14323370555">Call {practice.phone}</a>
             </aside>
           </div>
         </div>
@@ -743,6 +625,8 @@ export default function Booking() {
 export function ReceiptPreview() {
   // Export name retained so existing App.jsx does not need replacement.
   const location = useLocation();
+  const auth = useAuth();
+  const returningPatient = location.state?.bookingMode === "patient" || Boolean(auth.patient);
   const [receipt, setReceipt] = useState(null);
 
   useEffect(() => {
@@ -788,13 +672,26 @@ export function ReceiptPreview() {
                 failure does not erase the saved request. Email delivery
                 itself is not approval.
               </p>
-              <p>
-                No response time is promised here. Guest identity verification
-                and portal access are separate setup steps.
-              </p>
+              <section className="booking-next-step" aria-labelledby="booking-next-step-title">
+                <p className="eyebrow">Your next step</p>
+                <h2 id="booking-next-step-title">
+                  {returningPatient ? "Continue to your patient portal." : "Create your patient profile."}
+                </h2>
+                <p>
+                  {returningPatient
+                    ? "View your appointment request and follow its status in your patient portal. Staff approval is still required."
+                    : "Your request has been received. Create an account to set up your patient profile and securely access the portal."}
+                </p>
+                {!returningPatient && <p className="help">Creating an account is optional. Your request remains saved. Linking this guest request to your profile requires the practice's identity verification process.</p>}
+                <div className="button-row">
+                  <Button to={returningPatient ? "/portal" : "/portal/register"}>
+                    {returningPatient ? "Go to patient portal" : "Register my profile"}
+                  </Button>
+                  {!returningPatient && <Button to="/portal/login" variant="outline">Already have an account? Sign in</Button>}
+                </div>
+              </section>
               <div className="button-row">
-                <Button to="/manage-request">Manage-request entry</Button>
-                <Button to="/contact" variant="outline">Contact information</Button>
+                <Button to="/contact" variant="text">Contact the practice</Button>
               </div>
             </>
           ) : (

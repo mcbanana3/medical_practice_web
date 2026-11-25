@@ -307,7 +307,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       provider: row.provider, appointmentType: row.appointmentType,
       contact: {
         name: contact.name, email: contact.email,
-        phone: contact.phone || ""
+        phone: contact.phone || "", reason: contact.reason || ""
       },
       patientReference: await owner(c, row.id),
       reschedule: await getRescheduleContext(row.id, c),
@@ -509,7 +509,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       const created = await createRequest({
         locationId: row.location_id, providerId: row.provider_id,
         typeId: row.type_id, startsAt: iso(proposal.starts_at),
-        name: contact.name, email: contact.email, phone: contact.phone || ""
+        name: contact.name, email: contact.email, phone: contact.phone || "", reason: contact.reason || ""
       }, randomUUID());
 
       replacement = created.receipt.reference;

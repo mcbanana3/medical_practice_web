@@ -23,7 +23,7 @@ export async function bookingOptions(connection = pool) {
        p.name AS providerName,
        b.type_id AS typeId,
        t.name AS typeName,
-       t.duration_minutes AS durationMinutes,
+       30 AS durationMinutes,
        b.is_demo AS demo
      FROM booking_options b
      JOIN locations l ON l.id=b.location_id
@@ -32,7 +32,7 @@ export async function bookingOptions(connection = pool) {
      WHERE b.enabled=1
        AND (
          (b.verified=1 AND b.is_demo=0)
-         OR (?=1 AND b.is_demo=1)
+         OR (0=1 AND ?=1)
        )
      ORDER BY l.id, t.id, p.id`,
     [config.fixtures ? 1 : 0],

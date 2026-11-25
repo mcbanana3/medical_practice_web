@@ -90,6 +90,7 @@ function Editor({ data: d, reload, saved }) {
           <div><dt>Clinic time zone</dt><dd>{zone}</dd></div>
           <div><dt>Contact name</dt><dd>{d.contact.name}</dd></div>
           <div><dt>Email</dt><dd>{d.contact.email}</dd></div>
+          <div><dt>Reason for visit</dt><dd>{d.contact.reason || "Not provided"}</dd></div>
           <div><dt>Phone</dt><dd>{d.contact.phone || "Not provided"}</dd></div>
         </dl>
 

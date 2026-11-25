@@ -145,15 +145,22 @@ export function createPublicReviewsRouter({
   router.get("/", async (req, res) => {
     const input = z.object({
       limit: z.coerce.number().int().min(1).max(24).default(12),
-      offset: z.coerce.number().int().min(0).max(10000).default(0)
+      offset: z.coerce.number().int().min(0).max(10000).default(0),
+      sort: z.enum(["newest", "oldest", "highest", "lowest"]).default("newest")
     }).strict().parse(req.query);
 
+    const order = {
+      newest: "created_at DESC,id DESC",
+      oldest: "created_at ASC,id ASC",
+      highest: "(JSON_EXTRACT(public_json,'$.rating') IS NULL OR JSON_TYPE(JSON_EXTRACT(public_json,'$.rating'))='NULL') ASC, CAST(JSON_UNQUOTE(JSON_EXTRACT(public_json,'$.rating')) AS UNSIGNED) DESC,created_at DESC,id DESC",
+      lowest: "(JSON_EXTRACT(public_json,'$.rating') IS NULL OR JSON_TYPE(JSON_EXTRACT(public_json,'$.rating'))='NULL') ASC, CAST(JSON_UNQUOTE(JSON_EXTRACT(public_json,'$.rating')) AS UNSIGNED) ASC,created_at DESC,id DESC"
+    }[input.sort];
     const rows = await query(
-      `SELECT id,public_json,approved_at
+      `SELECT id,public_json,approved_at,created_at
        FROM public_review_submissions
        WHERE status='approved' AND publication_consent=1
          AND public_json IS NOT NULL
-       ORDER BY approved_at DESC,id DESC
+       ORDER BY ${order}
        LIMIT ? OFFSET ?`,
       [input.limit + 1, input.offset]
     );
@@ -167,6 +174,7 @@ export function createPublicReviewsRouter({
           text: published.text,
           rating: published.rating,
           approvedAt: row.approved_at.toISOString(),
+          createdAt: row.created_at.toISOString(),
           sourceLabel: "Website submission · administrator approved"
         };
       }),
