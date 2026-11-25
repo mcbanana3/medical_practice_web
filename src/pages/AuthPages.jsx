@@ -3,7 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../components/Button.jsx";
 import Notice from "../components/Notice.jsx";
-import PageIntro from "../components/PageIntro.jsx";
+import Icon from "../components/Icon.jsx";
+import { practice } from "../content.js";
+import { validEmail } from "../../shared/contact.js";
+import "./auth-pages.css";
 import Recaptcha from "../components/Recaptcha.jsx";
 
 import GoogleIdentity from "../auth/GoogleIdentity.jsx";
@@ -24,6 +27,7 @@ export default function AuthPages({ mode }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const captchaRef = useRef(null);
   const errorRef = useRef(null);
@@ -189,7 +193,7 @@ export default function AuthPages({ mode }) {
     if (mode !== "verify" && !isReset) {
       const email = (values.email || "").trim();
 
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (!validEmail(email)) {
         return "Enter a valid email address.";
       }
     }
@@ -211,6 +215,7 @@ export default function AuthPages({ mode }) {
       }
     }
 
+    if ((mode === "register" || isReset) && (values.confirmPassword || "") !== (isReset ? values.newPassword : values.password)) return "Your passwords do not match.";
     return "";
   }
 
@@ -344,20 +349,24 @@ export default function AuthPages({ mode }) {
             : "Request recovery instructions";
 
   return (
-    <>
-      <PageIntro
-        eyebrow="Patient account"
-        title={titles[mode]}
-      >
-        <p>
-          Secure access to your own account and linked appointment
-          information.
-        </p>
-      </PageIntro>
-
-      <section className="section">
-        <div className="container access-grid">
-          <div className="access-card">
+    <section className="auth-page" aria-labelledby="auth-title">
+      <div className="container auth-layout">
+        <aside className="auth-story">
+          <span className="auth-security-mark" aria-hidden="true"><Icon name="shield" /></span>
+          <p className="eyebrow">Your patient portal</p>
+          <h2>A little less admin.<br /><em>More space for you.</em></h2>
+          <p className="auth-story-lead">Your details, your appointments, and a clearer way to keep track of it all.</p>
+          <ul className="auth-benefits">
+            <li><Icon name="check" /><div><strong>Keep everything together</strong><span>Follow your appointment requests in one place.</span></div></li>
+            <li><Icon name="check" /><div><strong>Make it personal</strong><span>Keep your contact and patient profile up to date.</span></div></li>
+            <li><Icon name="check" /><div><strong>Stay in control</strong><span>Manage your password and account sessions.</span></div></li>
+          </ul>
+          <div className="auth-practice"><strong>{practice.clinician}</strong><span>{practice.specialty} / Odessa, Texas</span><a href="tel:+14323370555">Need help? {practice.phone}</a></div>
+          <div className="auth-decoration" aria-hidden="true" />
+        </aside>
+        <div className="auth-card">
+          {(mode === "login" || mode === "register") && <nav className="auth-tabs" aria-label="Account access"><Link to="/portal/login" aria-current={mode === "login" ? "page" : undefined}>Sign in</Link><Link to="/portal/register" aria-current={mode === "register" ? "page" : undefined}>Create account</Link></nav>}
+          <div className="auth-card-heading"><p className="eyebrow">{mode === "register" ? "A simple first step" : "Patient account"}</p><h1 id="auth-title">{titles[mode]}</h1><p>{mode === "register" ? "Create an account, verify your email, and make yourself at home." : mode === "login" ? "Sign in to pick up where you left off." : "Follow the steps below to securely access your account."}</p></div>
             {auth.error && (
               <div className="portal-block">
                 <Notice title="Account connection unavailable">
@@ -416,10 +425,11 @@ export default function AuthPages({ mode }) {
                     {field.optional ? " (optional)" : " (required)"}
                   </label>
 
+                  <div className={field.type === "password" ? "auth-password-input" : "auth-input"}>
                   <input
                     id={"auth-" + field.name}
                     name={field.name}
-                    type={field.type}
+                    type={field.type === "password" && showPassword ? "text" : field.type}
                     autoComplete={field.autoComplete}
                     required={!field.optional}
                     minLength={
@@ -444,8 +454,12 @@ export default function AuthPages({ mode }) {
                         : undefined
                     }
                   />
+                  {field.type === "password" && <button type="button" className="auth-password-toggle" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? "Hide" : "Show"}</button>}
+                  </div>
                 </div>
               ))}
+              {(mode === "register" || isReset) && <div className="field"><label htmlFor="auth-confirm-password">Confirm password (required)</label><input id="auth-confirm-password" type={showPassword ? "text" : "password"} autoComplete="new-password" required maxLength={128} value={values.confirmPassword || ""} onChange={event => updateField("confirmPassword",event.target.value)} /></div>}
+              {mode === "login" && <div className="auth-recovery-link"><Link to="/portal/recovery">Forgot your password?</Link></div>}
 
               {(mode === "register" || isReset) && (
                 <p
@@ -477,6 +491,7 @@ export default function AuthPages({ mode }) {
               )}
 
               <Recaptcha
+                minimal
                         id="booking-captcha"
                 ref={captchaRef}
                 onToken={(value) => {
@@ -525,13 +540,8 @@ export default function AuthPages({ mode }) {
               </div>
             </form>
 
-            <div className="inline-links">
-              <Link to="/portal/login">Sign in</Link>
-              <Link to="/portal/register">Register</Link>
-              <Link to="/portal/recovery">Account recovery</Link>
-              <Link to="/privacy">Privacy information</Link>
-            </div>
-
+            <p className="auth-switch">{mode === "login" ? <>New here? <Link to="/portal/register">Create your patient account</Link></> : <>Already have an account? <Link to="/portal/login">Sign in</Link></>}</p>
+            <p className="auth-privacy">One account is for one patient. Guest requests are linked through the practice's identity verification process. <Link to="/privacy">Privacy information</Link></p>
             {mode === "login" && (
               <GoogleIdentity
                 onComplete={() =>
@@ -539,26 +549,8 @@ export default function AuthPages({ mode }) {
                 }
               />
             )}
-          </div>
-
-          <aside>
-            <p className="eyebrow">Account access</p>
-            <h2>Your account. Your information.</h2>
-
-            <p className="section-copy">
-              One account represents one patient. Email verification
-              does not automatically link guest requests or another
-              person’s records.
-            </p>
-
-            {auth.supportContact && (
-              <p className="section-copy">
-                {auth.supportContact}
-              </p>
-            )}
-          </aside>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 }

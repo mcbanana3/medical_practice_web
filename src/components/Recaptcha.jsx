@@ -50,7 +50,7 @@ function loadGoogle() {
   return scriptPromise;
 }
 
-const Recaptcha = forwardRef(function Recaptcha({ onToken, id }, ref) {
+const Recaptcha = forwardRef(function Recaptcha({ onToken, id, minimal = false }, ref) {
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   const host = useRef(null);
   const widget = useRef(null);
@@ -110,22 +110,23 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken, id }, ref) {
   return (
     <section
       id={id || `security-${uniqueId}`}
-      className="captcha-panel"
+      className={`captcha-panel${minimal ? " captcha-panel--minimal" : ""}`}
       tabIndex="-1"
       aria-label="Security verification"
     >
-      <h3>Security check</h3>
-      <p className="help">
+      <h3 className={minimal ? "sr-only" : undefined}>Security check</h3>
+      {!minimal && <p className="help">
         This security check connects to Google automatically. Google’s privacy policy and
         terms apply. No appointment or contact fields are passed to this widget.
-      </p>
+      </p>}
 
       <div className="inline-links">
+        {minimal && <span>Protected by Google reCAPTCHA.</span>}
         <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
-          Google Privacy Policy — new tab
+          {minimal ? "Privacy" : "Google Privacy Policy — new tab"}
         </a>
         <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">
-          Google Terms — new tab
+          {minimal ? "Terms" : "Google Terms — new tab"}
         </a>
       </div>
 

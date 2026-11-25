@@ -1,3 +1,4 @@
+import HelpfulLinks from "../components/HelpfulLinks.jsx";
 import AppointmentCTA from "../components/AppointmentCTA.jsx";
 import ApprovedContent from "../components/ApprovedContent.jsx";
 import Button from "../components/Button.jsx";
@@ -30,6 +31,7 @@ export default function NewPatients() {
         <div className="container editorial-grid">
           <div><p className="eyebrow">Before a visit</p><h2>Practical information.</h2></div>
           <div>
+            <div className="preparation-note"><h3>Let’s get your visit started.</h3><p>Have your name, email address, US phone number, and a short description of your appointment reason ready when you book.</p><p>Your requested time is held while staff review it. Watch your email for updates, and check your patient portal for the latest status.</p></div>
             <ApprovedContent title="Eligibility">{approvedContent.newPatientEligibility}</ApprovedContent>
             <ApprovedContent title="What to bring">{approvedContent.preparation}</ApprovedContent>
             <ApprovedContent title="Forms">{approvedContent.forms}</ApprovedContent>
@@ -39,6 +41,12 @@ export default function NewPatients() {
           </div>
         </div>
       </section>
+
+      <HelpfulLinks title="A few helpful places to start." items={[
+        {to:"/insurance-fees",title:"Coverage questions",text:"Review what to confirm with the practice and your insurance provider.",icon:"shield"},
+        {to:"/portal/register",title:"Create your profile",text:"Register and verify your email to access your patient account.",icon:"check"},
+        {to:"/contact",title:"Plan your journey",text:"Find the office address, hours, and directions before your visit.",icon:"pin"}
+      ]} />
 
       <AppointmentCTA />
     </>

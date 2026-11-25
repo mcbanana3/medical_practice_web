@@ -20,6 +20,7 @@ import { AuthProvider } from "./auth/AuthProvider.jsx";
 import { approvedSchema, getSeo } from "./site.js";
 
 import "./portal.css";
+import "./public-pages.css";
 
 function PageEffects() {
   const { pathname } = useLocation();

@@ -1,3 +1,4 @@
+import HelpfulLinks from "../components/HelpfulLinks.jsx";
 import AppointmentCTA from "../components/AppointmentCTA.jsx";
 import ApprovedContent from "../components/ApprovedContent.jsx";
 import Button from "../components/Button.jsx";
@@ -21,6 +22,7 @@ export default function Insurance() {
           </aside>
 
           <div>
+            <div className="coverage-checklist"><p className="eyebrow">A useful checklist</p><h2>Make your coverage conversation easier.</h2><p>When you contact your insurer, have your plan details and the physician’s name ready.</p><ul><li><strong>Network status</strong><span>Confirm participation for your specific plan.</span></li><li><strong>Visit costs</strong><span>Ask about your copay, deductible, and coinsurance.</span></li><li><strong>Plan requirements</strong><span>Ask whether a referral or prior authorization is needed.</span></li></ul><p className="help">Your insurer and the practice can help clarify costs before you book.</p></div>
             <ApprovedContent title="Plans and networks">{approvedContent.insurancePlans}</ApprovedContent>
             <ApprovedContent title="Benefits verification">{approvedContent.benefitsGuidance}</ApprovedContent>
             <ApprovedContent title="Self-pay fees">{approvedContent.selfPayFees}</ApprovedContent>
@@ -30,6 +32,12 @@ export default function Insurance() {
           </div>
         </div>
       </section>
+
+      <HelpfulLinks title="Know what to ask before your visit." items={[
+        {to:"/contact",title:"Check with the practice",text:"Ask whether your specific plan is accepted and which payment options are available.",icon:"pin"},
+        {to:"/new-patients",title:"Prepare for your visit",text:"Understand how to request an appointment and what happens after submission.",icon:"check"},
+        {to:"/portal",title:"Your patient account",text:"Keep your contact information current and follow your appointment requests.",icon:"shield"}
+      ]} />
 
       <AppointmentCTA />
     </>

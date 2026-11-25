@@ -1,0 +1,88 @@
+/* Shared public-page design. Keep transactional forms and portal styles independent. */
+.public-site { background: #fff; }
+.public-site .page-intro { background: radial-gradient(ellipse at 92% 15%, #e8e2ff 0, transparent 55%), linear-gradient(120deg,#faf9ff,#f8f5f0); padding-block: clamp(48px,7vw,96px); border-top:0; border-bottom:1px solid #e8e3f0; }
+.public-site .page-intro .eyebrow { color:#5360a0; }
+.public-site .page-intro h1 { font-size:clamp(2.4rem,4.6vw,4.3rem); line-height:1.12; letter-spacing:-.035em; }
+.public-site .intro-copy { max-width:650px; margin-top:22px; line-height:1.8; }
+.public-site .page-intro--dark { background:linear-gradient(120deg,#192350,#2b3f9a); }
+.public-site .page-intro--dark .eyebrow { color:#e2dcff; }
+.public-site .content-section { padding:28px; border:1px solid #e7e4ee; border-radius:18px; background:#fff; box-shadow:0 8px 32px #17235004; }
+.public-site .content-section h2 { font-size:clamp(1.4rem,2.2vw,1.8rem); line-height:1.3; }
+.public-site .content-section p { line-height:1.85; }
+.public-site .content-section p + p { margin-top:16px; }
+.public-site .directory-grid, .public-site .finance-grid, .public-site .editorial-grid { gap:clamp(28px,5vw,72px); }
+.public-site .vertical-steps { display:grid; gap:16px; }
+.public-site .vertical-steps li { padding:26px; border:1px solid #e3deef; background:#fff; border-radius:18px; box-shadow:0 8px 30px #17235004; }
+.public-site .vertical-steps li > span { display:grid; place-items:center; width:42px; height:42px; background:#eeeafb; border-radius:50%; color:#3445a0; font-size:1.1rem; }
+.public-site .vertical-steps p { color:#62667c; }
+.public-site .finance-note { background:#f0edf9; border:1px solid #e2dcef; padding:32px; }
+.public-site .contact-grid { padding-top:32px; gap:clamp(28px,4vw,64px); }
+.public-site .contact-grid > div:first-child { min-width:0; }
+.public-site .contact-grid .facts { border:1px solid #e4e0ed; border-radius:18px; background:#fcfbfe; padding:8px 24px; }
+.public-site .contact-grid .facts > div:last-child { border:0; }
+.public-site .reading-width { background:#fff; border:1px solid #e5e0ed; border-top:3px solid #7274c3; padding:clamp(24px,4vw,48px); border-radius:18px; box-shadow:0 14px 48px #17235007; }
+.public-site .hero { background:radial-gradient(ellipse at 0 0,#eeeafd80,transparent 60%),#fffcf8; }
+.public-site .ruled-panel { border-radius:0 18px 18px 18px; background:#faf9fd; padding:32px; }
+.public-site .orientation { padding-block:12px; border-block:1px solid #e8e3ef; }
+.public-site .orientation a { border-radius:12px; }
+.public-site .orientation a:hover { background:#f4f1fb; }
+.public-site .process-grid li { box-shadow:0 10px 32px #17235005; }
+.physician-hero { padding:64px 0; background:radial-gradient(ellipse at 5% 30%,#e9e4ff,transparent 60%),#f9f7f3; border-bottom:1px solid #e6e0ed; }
+.physician-hero-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); align-items:center; gap:72px; }
+.physician-intro h1 { font-size:clamp(2.6rem,4.6vw,4.5rem); line-height:1.1; letter-spacing:-.035em; max-width:620px; }
+.physician-specialty { display:inline-block; color:#354798; background:#eae5fa; padding:8px 16px; border-radius:99px; margin:24px 0; font-size:1rem; }
+.physician-intro .lead { max-width:530px; line-height:1.75; color:#5c6177; }
+.physician-intro .button-row { margin-top:30px; }
+.physician-note { display:flex; align-items:center; gap:8px; color:#686c80; font-size:.95rem; margin-top:24px; }
+.physician-portrait { margin:0; padding:12px; background:#fff; border:1px solid #e6e0ed; border-radius:180px 180px 24px 24px; box-shadow:0 24px 64px #23326c14; }
+.physician-portrait img { display:block; width:100%; height:460px; object-fit:cover; object-position:center 25%; border-radius:170px 170px 12px 12px; }
+.physician-portrait figcaption { display:grid; gap:3px; padding:20px 14px 10px; text-align:center; }
+.physician-portrait figcaption span:first-child { color:#263874; font-weight:600; }
+.physician-portrait figcaption span:last-child { color:#717487; font-size:.9rem; }
+.physician-story { display:grid; grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr); gap:72px; align-items:start; }
+.physician-index { position:sticky; top:110px; }
+.physician-index h2 { font-size:2.2rem; }
+.physician-index nav { display:grid; margin-top:28px; }
+.physician-index nav a { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 0; border-bottom:1px solid #e8e3ef; text-decoration:none; }
+.physician-index nav a:hover { color:#5965b2; }
+.physician-location { display:flex; gap:12px; margin-top:32px; padding:20px; background:#f5f2fa; border-radius:14px; color:#64687b; }
+.physician-location .icon { flex-shrink:0; margin-top:5px; }
+.physician-location p { margin:0; font-size:.95rem; }
+.physician-content > div { scroll-margin-top:120px; }
+.physician-content .content-section { margin:0 0 24px; }
+.helpful-section { background:#f8f6fc; border-block:1px solid #ebe5f3; }
+.helpful-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+.helpful-card { display:flex; flex-direction:column; align-items:flex-start; padding:30px; border:1px solid #e6e0ee; border-radius:20px; background:#fff; text-decoration:none; box-shadow:0 8px 32px #17235004; transition:transform .2s,box-shadow .2s,border-color .2s; }
+.helpful-card:hover { transform:translateY(-4px); border-color:#c1b6e5; box-shadow:0 16px 36px #1723500c; }
+.helpful-card h3 { font-size:1.45rem; margin:20px 0 12px; }
+.helpful-card p { color:#64687c; font-size:1rem; line-height:1.75; margin-bottom:24px; }
+.helpful-icon { display:grid; place-items:center; width:48px; height:48px; background:#eeebfb; border-radius:14px; color:#3b4a9d; }
+.helpful-action { display:flex; align-items:center; gap:10px; margin-top:auto; color:#34459d; font-size:.95rem; font-weight:600; }
+.preparation-note, .coverage-checklist { padding:32px; border:1px solid #e4deef; background:#fff; border-radius:20px; }
+.preparation-note p, .coverage-checklist > p { color:#666a7d; line-height:1.8; }
+.coverage-checklist h2 { font-size:2rem; }
+.coverage-checklist ul { list-style:none; padding:0; margin:24px 0; }
+.coverage-checklist li { display:grid; gap:5px; padding:18px 0 18px 28px; border-top:1px solid #ebe6f0; position:relative; }
+.coverage-checklist li::before { content:'✓'; position:absolute; left:0; top:18px; color:#4c5bab; }
+.coverage-checklist li span { color:#676b7f; }
+@media (max-width:1000px) {
+ .physician-hero-grid { gap:36px; }
+ .physician-story { gap:40px; }
+ .physician-portrait img { height:380px; }
+ .helpful-card { padding:24px; }
+}
+@media (max-width:760px) {
+ .physician-hero { padding:40px 0; }
+ .physician-hero-grid, .physician-story { grid-template-columns:minmax(0,1fr); gap:36px; }
+ .physician-portrait { width:min(100%,400px); justify-self:center; }
+ .physician-portrait img { height:380px; }
+ .physician-index { position:static; }
+ .physician-index nav { margin-top:16px; }
+ .helpful-grid { grid-template-columns:minmax(0,1fr); gap:16px; }
+ .helpful-card h3 { margin-top:16px; }
+ .public-site .content-section, .preparation-note, .coverage-checklist { padding:24px; }
+ .public-site .vertical-steps li { padding:20px; grid-template-columns:42px minmax(0,1fr); gap:16px; }
+ .public-site .contact-grid .facts { padding:8px 18px; }
+ .public-site .ruled-panel { padding:24px; }
+}
+@media (prefers-reduced-motion:reduce) { .helpful-card { transition:none; } .helpful-card:hover { transform:none; } }

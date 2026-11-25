@@ -1,3 +1,4 @@
+import HelpfulLinks from "../components/HelpfulLinks.jsx";
 import AppointmentCTA from "../components/AppointmentCTA.jsx";
 import ApprovedContent from "../components/ApprovedContent.jsx";
 import Button from "../components/Button.jsx";
@@ -35,6 +36,12 @@ export default function Care() {
           </div>
         </div>
       </section>
+
+      <HelpfulLinks title="Find the right information for your visit." items={[
+        {to:"/about",title:"Meet your physician",text:"Get to know Dr. Harika Thummala and her approach to adult healthcare.",icon:"shield"},
+        {to:"/request-an-appointment",title:"Request a time",text:"Choose an available 30-minute slot. Staff approval confirms your appointment.",icon:"check"},
+        {to:"/contact",title:"Have a question?",text:"Call the practice to confirm available services and discuss the next step.",icon:"pin"}
+      ]} />
 
       <AppointmentCTA />
     </>
