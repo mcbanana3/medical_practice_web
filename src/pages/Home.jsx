@@ -22,10 +22,10 @@ export default function Home() {
             <p className="eyebrow">{practice.name}</p>
             {practice.specialty && <p className="hero-specialty">{practice.specialty}</p>}
 
-            <h1>A clear next step.<br /><span>Space to begin.</span></h1>
+            <h1>Internal Medicine<br /><span>in Odessa, Texas.</span></h1>
 
             <p className="hero-description">
-              Request an appointment, find practical information, or securely access your patient account.
+              Adult healthcare with Dr. Harika Thummala, MD. Request an appointment, prepare for your visit, and manage your linked appointments through the patient portal.
             </p>
 
             <div className="button-row">
@@ -40,7 +40,7 @@ export default function Home() {
           </div>
 
           <div className="hero-art entrance entrance-delay">
-            <AbstractArt />
+            <AbstractArt priority />
           </div>
         </div>
       </section>

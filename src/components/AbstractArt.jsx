@@ -1,7 +1,8 @@
 
 export default function AbstractArt({
   compact = false,
-  image = "/potrait.png"
+  image = "/potrait.png",
+  priority = false
 }) {
   return (
     <div
@@ -14,7 +15,9 @@ export default function AbstractArt({
         className="abstract-art__image"
         src={image}
         alt=""
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchpriority={priority ? "high" : undefined}
+        decoding="async"
       />
 
       <div className="abstract-art__overlay" />

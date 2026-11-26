@@ -86,3 +86,7 @@
  .public-site .ruled-panel { padding:24px; }
 }
 @media (prefers-reduced-motion:reduce) { .helpful-card { transition:none; } .helpful-card:hover { transform:none; } }
+
+.public-site .reading-width details { border-bottom:1px solid #e5e1ed; padding:18px 0; }
+.public-site .reading-width summary { cursor:pointer; color:#344578; font-weight:600; padding-right:20px; }
+.public-site .reading-width details p { margin:16px 0 0; color:#626c82; line-height:1.85; }

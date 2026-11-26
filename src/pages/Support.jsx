@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from "react";
 import Button from "../components/Button.jsx";
-import { ContentSections } from "../components/Content.jsx";
 import Notice from "../components/Notice.jsx";
 import PageIntro from "../components/PageIntro.jsx";
 import { emergency } from "../site.js";
@@ -17,10 +15,7 @@ export function Emergency() {
             <h2>Website limitations</h2>
             <p>This website does not provide symptom triage. Appointment requests are not emergency messages.</p>
           </section>
-          <ContentSections sections={[
-            ["Non-emergency contact", "verified non-emergency contact method"],
-            ["After-hours instructions", "practice-approved after-hours instructions"]
-          ]} />
+          <section className="content-section"><h2>Non-emergency office contact</h2><p>For appointment and office questions, call <a href="tel:+14323370555">+1 (432) 337-0555</a>. Check the <a href="/contact">office hours and directions</a> before travelling. If you are experiencing an emergency, call 911 rather than waiting for an online response.</p></section>
         </div>
       </section>
     </>
@@ -41,46 +36,5 @@ export function NotFound() {
         </div>
       </div>
     </section>
-  );
-}
-
-export function StatePreview() {
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const timer = useRef(null);
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-
-  function demonstrate() {
-    window.clearTimeout(timer.current);
-    setLoading(true);
-    setMessage("");
-    timer.current = window.setTimeout(() => {
-      setLoading(false);
-      setMessage("Preview finished. No service was contacted.");
-    }, 1000);
-  }
-
-  return (
-    <>
-      <PageIntro eyebrow="Unpublished quality-review tools" title="Interface states.">
-        <p>Demonstrations only—not reports about a live service.</p>
-      </PageIntro>
-      <section className="section">
-        <div className="container reading-width state-stack">
-          <Notice title="Empty-state example">No matching requests. Change the filters or return to a safe starting page.</Notice>
-          <Notice title="Error-state example" tone="error">The service is temporarily unavailable. This does not mean the practice is closed.</Notice>
-          <Notice title="Session-expiry example">Your session ended. Unsaved work may need to be entered again. No real session exists here.</Notice>
-          <Notice title="Uncertain-outcome example">A connected system must verify the saved request before inviting a duplicate submission.</Notice>
-          <div className="loading-demo" aria-busy={loading}>
-            <Button type="button" onClick={demonstrate} disabled={loading} arrow={false}>
-              {loading && <span className="spinner" aria-hidden="true" />}
-              {loading ? "Demonstrating loading…" : "Preview loading feedback"}
-            </Button>
-            <p role="status">{loading ? "Please wait. This is a loading demonstration." : message}</p>
-          </div>
-        </div>
-      </section>
-    </>
   );
 }

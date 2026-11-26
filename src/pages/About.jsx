@@ -9,7 +9,7 @@ export default function About() {
   return <>
     <section className="physician-hero"><div className="container physician-hero-grid">
       <div className="physician-intro"><p className="eyebrow">Meet your physician · Odessa, Texas</p><h1>{practice.clinician}</h1><p className="physician-specialty">{practice.specialty}</p><p className="lead">Thoughtful care begins with understanding the person behind every health concern.</p><div className="button-row"><Button to="/request-an-appointment">Request an appointment</Button><Button to="/contact" variant="text">Get in touch</Button></div><p className="physician-note"><Icon name="pin" /> Adult healthcare in Odessa, Texas</p></div>
-      <figure className="physician-portrait"><img src="/potrait.png" alt="Dr. Harika Thummala" /><figcaption><span>{practice.clinician}</span><span>{practice.specialty}</span></figcaption></figure>
+      <figure className="physician-portrait"><img src="/potrait.png" alt="Dr. Harika Thummala, Internal Medicine physician in Odessa, Texas" fetchpriority="high" decoding="async" /><figcaption><span>{practice.clinician}</span><span>{practice.specialty}</span></figcaption></figure>
     </div></section>
     <section className="section"><div className="container physician-story">
       <aside className="physician-index"><p className="eyebrow">Getting to know us</p><h2>A personal introduction.</h2><nav aria-label="About page sections"><a href="#physician-background">Background <Icon /></a><a href="#physician-approach">Approach to care <Icon /></a><a href="#physician-details">Professional information <Icon /></a></nav><div className="physician-location"><Icon name="pin" /><p>{practice.address}</p></div></aside>

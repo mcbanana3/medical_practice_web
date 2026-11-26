@@ -181,7 +181,7 @@ export function ReviewForm() {
         <p className="eyebrow">Share feedback</p>
         <h2>Your experience, in your words.</h2>
         <p>
-          No account is required. Your submission stays private until an
+          No account is required. Your submission stays private until the
           practice approves it. Positive and negative feedback are welcome.
         </p>
         <p className="help">
@@ -248,7 +248,7 @@ export function ReviewForm() {
               <legend>Review details</legend>
               <label htmlFor={prefix + "-name"}>Public display name — optional</label>
               <input id={prefix + "-name"} name="displayName" maxLength={80}
-                autoComplete="off" placeholder="Anonymous if left blank" />
+                autoComplete="off" />
               <fieldset className="review-rating-picker"><legend>Your rating (required)</legend><div className="review-rating-options">{[1,2,3,4,5].map(n => <label key={n} className={n <= rating ? "is-filled" : ""}><input type="radio" name="rating" value={n} required checked={rating === n} onChange={() => setRating(n)} /><span aria-hidden="true">&#9733;</span><span className="sr-only">{n} {n === 1 ? "star" : "stars"}</span></label>)}</div><p className="help" aria-live="polite">{rating ? `${rating} out of 5 stars` : "Select a star to rate your experience"}</p></fieldset>
               <label htmlFor={prefix + "-text"}>Your review</label>
               <textarea id={prefix + "-text"} name="text" required

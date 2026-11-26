@@ -55,8 +55,8 @@ try {
   assert.ok(html.includes('aria-expanded="false"'));assert.ok(html.includes('aria-current="page"'));
   console.log("PASS "+role+" workspace navigation and dashboard");
   if(process.argv.includes("--preview")) {
-    const css=(await fs.readdir("dist/assets")).find(name=>name.endsWith(".css"));
-    await fs.writeFile("dist/"+(role==="administrator"?"admin":"staff")+"-layout-preview.html",`<!doctype html><html><head><meta charset="UTF-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/dist/assets/${css}"><title>Synthetic ${role} layout check</title></head><body><div class="staff staff--workspace"><main class="staff-main">${html}</main></div></body></html>`);
+    const cssLinks=(await fs.readdir("dist/assets")).filter(name=>name.endsWith(".css")).map(name=>'<link rel="stylesheet" href="/dist/assets/'+name+'">').join("");
+    await fs.writeFile("dist/"+(role==="administrator"?"admin":"staff")+"-layout-preview.html",`<!doctype html><html><head><meta charset="UTF-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1">${cssLinks}<title>Synthetic ${role} layout check</title></head><body><div class="staff staff--workspace"><main class="staff-main">${html}</main></div></body></html>`);
   }
  }
 

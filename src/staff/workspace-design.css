@@ -294,3 +294,26 @@
 .workspace-practice-logo { display:block; width:46px; height:46px; object-fit:contain; flex:0 0 46px; background:transparent; border:0; border-radius:0; }
 .staff .staff-main:focus,.staff .staff-main:focus-visible { outline:none; box-shadow:none; }
 @media(max-width:1100px) { .workspace-practice-logo { width:40px; height:40px; flex-basis:40px; } }
+
+/* Align form actions with their controls, rather than the full label block. */
+.workspace-content form.staff-actions { align-items:flex-end; gap:16px; }
+.workspace-content form.staff-actions > label { margin:0; }
+.workspace-content .staff-grid { align-items:end; gap:18px 16px; }
+.workspace-content .staff-grid > label { margin:0; }
+.workspace-content .staff-grid > button,
+.workspace-content form.staff-actions > button,
+.workspace-content .staff-edit-row > button { min-height:44px; margin-bottom:0; align-self:end; }
+.workspace-content .staff-edit-row { align-items:flex-end; }
+.workspace-content .staff-edit-row > label { margin:0; }
+.workspace-content .staff-filter-buttons { align-items:center; }
+.workspace-content .staff-filter-buttons > button { min-height:44px; }
+.workspace-content .staff-directory > .staff-panel { display:flex; flex-direction:column; align-items:flex-start; }
+.workspace-content .staff-directory > .staff-panel > button { margin-top:auto; }
+.workspace-content .staff-directory > .staff-panel > p:last-of-type { margin-bottom:20px; }
+@media(max-width:640px) {
+ .workspace-content form.staff-actions { align-items:stretch; }
+ .workspace-content form.staff-actions > label { flex-basis:100%; }
+ .workspace-content form.staff-actions > button { width:100%; align-self:stretch; }
+ .workspace-content .staff-grid > button { width:100%; }
+ .workspace-content .staff-edit-row > button { width:100%; align-self:stretch; }
+}

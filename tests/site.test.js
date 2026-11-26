@@ -56,3 +56,26 @@ test("sensitive routes remain excluded when publication is enabled", () => {
     site.url = previousUrl;
   }
 });
+
+test("production public pages have distinct local-search metadata and canonical URLs", () => {
+ const before={...site};
+ try {
+  site.publicationReady=true;site.verified=true;site.url="https://harikathummalamd.com";
+  const titles=new Set(),descriptions=new Set();
+  for(const page of sitemapPages()) {
+   const seo=getSeo(page.path);
+   assert.ok(seo.robots.startsWith("index,"));assert.ok(seo.canonical.startsWith(site.url));
+   assert.ok(!titles.has(seo.title));assert.ok(!descriptions.has(seo.description));
+   titles.add(seo.title);descriptions.add(seo.description);
+   assert.ok(approvedSchema(page.path));
+  }
+  for(const path of ["/admin","/admin/patients","/staff/login","/staff/requests/"+"a".repeat(32),"/portal/appointments/"+"b".repeat(32),"/preview/states","/care/content-preview"]) {
+   assert.equal(getSeo(path).robots,"noindex,nofollow");assert.equal(approvedSchema(path),null);
+   assert.ok(!sitemapPages().some(page=>page.path===path));
+  }
+  const schema=JSON.stringify(approvedSchema("/contact"));
+  assert.ok(schema.includes("BreadcrumbList"));assert.ok(schema.includes("79761"));
+  assert.ok(!schema.includes("AggregateRating"));assert.ok(!schema.includes("reviewRating"));
+  assert.equal(getSeo("/contact/").canonical,site.url+"/contact");
+ } finally {Object.assign(site,before);}
+});

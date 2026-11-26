@@ -8,8 +8,8 @@ import { approvedContent } from "../content.js";
 export default function NewPatients() {
   return (
     <>
-      <PageIntro eyebrow="New patients" title="A clear beginning.">
-        <p>Please confirm whether the practice is accepting new-patient requests.</p>
+      <PageIntro eyebrow="New patients" title="New patients: plan your first visit.">
+        <p>Request an appointment with Dr. Harika Thummala in Odessa, or call the office to discuss your visit.</p>
       </PageIntro>
 
       <section className="section">

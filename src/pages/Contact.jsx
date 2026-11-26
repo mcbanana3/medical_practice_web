@@ -17,7 +17,7 @@ export default function Contact() {
 
   return (
     <>
-      <PageIntro eyebrow="Locations and contact" title="Find the practical details." />
+      <PageIntro eyebrow="Locations and contact" title="Visit our Odessa Internal Medicine office." />
 
       <section className="section section-tight">
         <div className="container">

@@ -11,13 +11,13 @@ export default function Footer() {
         <div className="footer-grid">
           <div className="footer-brand">
             <Brand />
-            <p>Practice information.<br />Clear next steps.</p>
+            <p>Adult Internal Medicine.<br />Odessa, Texas.</p>
           </div>
 
           <div>
             <h2>Contact</h2>
             {practice.address && <p>{practice.address}</p>}
-            {practice.phone && <p>{practice.phone}</p>}
+            {practice.phone && <p><a href="tel:+14323370555">{practice.phone}</a></p>}
             <Link to="/contact">Location and contact information</Link>
           </div>
 

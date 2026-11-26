@@ -4,20 +4,20 @@ import { Route, Routes, useLocation } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import Home from "./pages/Home.jsx";
 import About from "./pages/About.jsx";
-import Care, { ServiceDetail } from "./pages/Care.jsx";
+import Care from "./pages/Care.jsx";
 import NewPatients from "./pages/NewPatients.jsx";
 import Insurance from "./pages/Insurance.jsx";
 import Contact from "./pages/Contact.jsx";
 import Reviews from "./pages/Reviews.jsx";
 import { ReceiptPreview } from "./pages/Booking.jsx";
-import { AccessForm, ManageRequest } from "./pages/Access.jsx";
+import { ManageRequest } from "./pages/Access.jsx";
 import Policies from "./pages/Policies.jsx";
-import { Emergency, NotFound, StatePreview } from "./pages/Support.jsx";
+import { Emergency, NotFound } from "./pages/Support.jsx";
 import AuthPages from "./pages/AuthPages.jsx";
 import Portal from "./pages/Portal.jsx";
 import BookingEntry from "./pages/PatientBooking.jsx";
 import { AuthProvider } from "./auth/AuthProvider.jsx";
-import { approvedSchema, getSeo } from "./site.js";
+import { approvedSchema, getSeo, socialMetadata } from "./site.js";
 
 import "./portal.css";
 import "./public-pages.css";
@@ -49,9 +49,16 @@ function PageEffects() {
       document.head.appendChild(link);
     }
 
-    const schema = approvedSchema();
+    for (const [name,content] of socialMetadata(seo)) {
+      const meta=document.createElement("meta");
+      meta.setAttribute(name.startsWith("og:")?"property":"name",name);
+      meta.content=content;
+      meta.dataset.siteMeta="";
+      document.head.appendChild(meta);
+    }
+    const schema = approvedSchema(pathname);
 
-    if (schema && pathname === "/") {
+    if (schema) {
       const script = document.createElement("script");
       script.type = "application/ld+json";
       script.dataset.siteMeta = "";
@@ -80,7 +87,6 @@ export default function App() {
           <Route path="/" element={publicPage(<Home />)} />
           <Route path="/about" element={publicPage(<About />)} />
           <Route path="/care" element={publicPage(<Care />)} />
-          <Route path="/care/content-preview" element={publicPage(<ServiceDetail />)} />
           <Route path="/new-patients" element={publicPage(<NewPatients />)} />
           <Route path="/insurance-fees" element={publicPage(<Insurance />)} />
           <Route path="/contact" element={publicPage(<Contact />)} />
@@ -97,7 +103,6 @@ export default function App() {
 
           <Route path="/portal/*" element={<Portal />} />
           <Route path="/portal" element={<Portal />} />
-          <Route path="/staff/login" element={publicPage(<AccessForm mode="staff" />)} />
 
           {[
             "privacy", "privacy-practices", "terms", "accessibility",
@@ -107,7 +112,6 @@ export default function App() {
               element={publicPage(<Policies type={type} />)} />
           ))}
 
-          <Route path="/preview/states" element={publicPage(<StatePreview />)} />
           <Route path="*" element={publicPage(<NotFound />)} />
         </Routes>
       </div>

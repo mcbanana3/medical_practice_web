@@ -54,13 +54,16 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken, id, minimal = false }
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   const host = useRef(null);
   const widget = useRef(null);
+  const mounted = useRef(false);
   const tokenHandler = useRef(onToken);
   const uniqueId = useId();
   const [attempt, setAttempt] = useState(0);
+  const [started, setStarted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   tokenHandler.current = onToken;
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   function reset() {
     tokenHandler.current("");
@@ -73,7 +76,7 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken, id, minimal = false }
   useImperativeHandle(ref, () => ({ reset }));
 
   useEffect(() => {
-    if (!siteKey) return undefined;
+    if (!siteKey || !started) return undefined;
 
     let active = true;
     setLoading(true);
@@ -85,9 +88,10 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken, id, minimal = false }
         widget.current = google.render(host.current, {
           sitekey: siteKey,
           size: "compact",
-          callback: (token) => tokenHandler.current(token),
-          "expired-callback": () => tokenHandler.current(""),
+          callback: (token) => { if (mounted.current) tokenHandler.current(token); },
+          "expired-callback": () => { if (mounted.current) tokenHandler.current(""); },
           "error-callback": () => {
+            if (!mounted.current) return;
             tokenHandler.current("");
             setError("The security check is unavailable. Retry or use verified support.");
           }
@@ -105,7 +109,7 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken, id, minimal = false }
     });
 
     return () => { active = false; };
-  }, [attempt, siteKey]);
+  }, [attempt, siteKey, started]);
 
   return (
     <section
@@ -116,8 +120,8 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken, id, minimal = false }
     >
       <h3 className={minimal ? "sr-only" : undefined}>Security check</h3>
       {!minimal && <p className="help">
-        This security check connects to Google automatically. Google’s privacy policy and
-        terms apply. No appointment or contact fields are passed to this widget.
+        Google verification loads only after you choose “I’m not a robot”. Then complete
+        Google’s checkbox or challenge. Google’s privacy policy and terms apply.
       </p>}
 
       <div className="inline-links">
@@ -134,7 +138,8 @@ const Recaptcha = forwardRef(function Recaptcha({ onToken, id, minimal = false }
         <p className="field-error">The security check has not been configured.</p>
       ) : (
         <>
-          <div ref={host} className="captcha-widget" aria-busy={loading} />
+          {!started && <div className="captcha-start"><button type="button" className="captcha-start-button" aria-controls={`captcha-widget-${uniqueId}`} onClick={() => { setStarted(true); setError(""); }}><span className="captcha-start-square" aria-hidden="true" />I’m not a robot</button><p className="help">Click to load Google’s verification, then complete its checkbox or challenge.</p></div>}
+          <div id={`captcha-widget-${uniqueId}`} ref={host} className="captcha-widget" hidden={!started} aria-busy={loading} />
 
           <p role="status">{loading ? "Loading security check…" : ""}</p>
 

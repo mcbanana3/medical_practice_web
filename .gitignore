@@ -7,3 +7,5 @@ coverage/
 .DS_Store
 *.log
 server/.env.staff
+# Synthetic local data and test credentials
+local-test-data/

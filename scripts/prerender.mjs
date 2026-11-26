@@ -9,6 +9,7 @@ import {
   sitemapPages,
   approvedSchema,
   escapeHtml,
+  socialMetadata,
   validSiteUrl
 } from "../.prerender/prerender.js";
 
@@ -23,11 +24,12 @@ const template = await fs.readFile(path.join(output, "index.html"), "utf8");
 
 for (const route of [...pages, { path: "/404" }]) {
   const seo = getSeo(route.path);
-  const schema = route.path === "/" ? approvedSchema() : null;
+  const schema = approvedSchema(route.path);
 
   const head = [
     `<meta data-site-meta name="description" content="${escapeHtml(seo.description)}">`,
     `<meta data-site-meta name="robots" content="${escapeHtml(seo.robots)}">`,
+    ...socialMetadata(seo).map(([name,content]) => `<meta data-site-meta ${name.startsWith("og:")?"property":"name"}="${name}" content="${escapeHtml(content)}">`),
     seo.canonical
       ? `<link data-site-meta rel="canonical" href="${escapeHtml(seo.canonical)}">`
       : "",
@@ -66,12 +68,7 @@ const robots = site.publicationReady
   ? [
       "User-agent: *",
       "Allow: /",
-      "Disallow: /portal",
-      "Disallow: /staff",
-      "Disallow: /manage-request",
-      "Disallow: /request-an-appointment/received",
-      "Disallow: /preview",
-      "Disallow: /care/content-preview",
+      "Disallow: /api/",
       `Sitemap: ${site.url}/sitemap.xml`
     ].join("\n")
   : "User-agent: *\nDisallow: /\n";

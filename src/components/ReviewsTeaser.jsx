@@ -1,5 +1,5 @@
 import Button from "./Button.jsx";
-import { PublishedReviews, ReviewForm } from "./PracticeReviews.jsx";
+import { PublishedReviews } from "./PracticeReviews.jsx";
 
 export default function ReviewsTeaser() {
   return (
@@ -20,7 +20,6 @@ export default function ReviewsTeaser() {
       <section className="section">
         <div className="container">
           <PublishedReviews limit={3} paginated={false} />
-          <ReviewForm />
         </div>
       </section>
     </>

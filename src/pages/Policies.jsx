@@ -21,7 +21,7 @@ export default function Policies({ type }) {
         <div className="container reading-width">
           {approvedContent[key]
             ? <p style={{ whiteSpace: "pre-line" }}>{approvedContent[key]}</p>
-            : <p>This information is not currently published online.</p>}
+            : <p>Call the practice at +1 (432) 337-0555 for assistance with this information.</p>}
           <div className="button-row"><Link to="/contact">Contact information</Link></div>
         </div>
       </section>

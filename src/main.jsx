@@ -12,13 +12,13 @@ import "./styles.css";
 import "./visual-refresh.css";
 
 import App from "./App.jsx";
-import StaffApp from "./staff/StaffApp.jsx";
+const StaffApp = React.lazy(() => import("./staff/StaffApp.jsx"));
 
 function Root() {
   const { pathname } = useLocation();
 
   return /^\/(?:staff|admin)(?:\/|$)/.test(pathname)
-    ? <StaffApp />
+    ? <React.Suspense fallback={<main className="container section" role="status">Loading practice workspace…</main>}><StaffApp /></React.Suspense>
     : <App />;
 }
 

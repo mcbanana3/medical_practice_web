@@ -16,7 +16,7 @@ export default function Reviews() {
             patient identities or a comprehensive review feed.
           </p>
           <PublishedReviews />
-          <div id="share-review"><ReviewForm /></div>
+          <div><ReviewForm /></div>
         </div>
       </section>
       <AppointmentCTA />

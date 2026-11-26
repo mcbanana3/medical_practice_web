@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
+import {pages as routes} from "../.prerender/prerender.js";
 const root=path.resolve("dist");
 let pages=0,assets=0;
 async function visit(dir) {
@@ -24,5 +25,5 @@ async function visit(dir) {
  }
 }
 await visit(root);
-assert.ok(pages>=30);
+assert.equal(pages,routes.length+1);
 console.log("PASS "+pages+" built HTML pages; "+assets+" local asset references");
