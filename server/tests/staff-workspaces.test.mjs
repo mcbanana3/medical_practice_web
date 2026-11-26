@@ -114,6 +114,11 @@ test("dashboard pending totals and the unfiltered queue agree across past and di
       assert.equal(row.patient.phone,"+14323370555");assert.equal(row.patient.reason,"Synthetic appointment reason");
       assert.equal(Object.hasOwn(row,"contact_enc"),false);
     }
+    const guest=await client.call("/requests?q=review-recipient%40example.test");assert.equal(guest.status,200);assert.ok(guest.data.items.some(item=>item.reference===futureId));
+    assert.ok(!JSON.stringify(guest.data).includes("contact_enc"));
+    assert.equal((await client.call("/requests?q=review-recipient%40example.test&providerId=999999")).data.total,0);
+    const upcoming=await client.call("/requests?status=pending,approved&upcoming=1");assert.equal(upcoming.status,200);assert.equal(upcoming.data.total,dashboard.data.upcoming);
+    const approvedToday=await client.call("/requests?status=approved&from="+dashboard.data.todayDate+"&to="+dashboard.data.todayDate);assert.equal(approvedToday.status,200);assert.equal(approvedToday.data.total,dashboard.data.today);
     const today=DateTime.now().setZone(config.zone);
     const range=await client.call("/requests?status=pending&from="+today.toISODate()+"&to="+today.plus({days:29}).toISODate());
     assert.equal(range.status,200);assert.ok(!range.data.items.some(item=>[pastPendingId,distantPendingId].includes(item.reference)));

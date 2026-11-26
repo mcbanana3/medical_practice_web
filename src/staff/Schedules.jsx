@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { post, params } from "./client.js";
 import {
   useStaff, useResource, Resource, Problem,
@@ -16,10 +16,12 @@ export function Queue({ calendar = false }) {
   const { options, basePath } = useStaff();
   const zone = options.clinicTimeZone;
   const today = clinicDate(new Date(), zone);
+  const search = new URLSearchParams(useLocation().search);
   const initial = {
-    from: calendar ? today : "",
-    to: calendar ? addDays(today, 6) : "",
-    status: calendar ? "pending,approved" : "pending",
+    from: calendar ? today : search.get("from") || "",
+    to: calendar ? addDays(today, 6) : search.get("to") || "",
+    status: calendar ? "pending,approved" : search.get("status") || "pending",
+    upcoming: !calendar && search.get("upcoming") === "1" ? "1" : "",
     locationId: "", providerId: "", q: ""
   };
 
@@ -80,7 +82,7 @@ export function Queue({ calendar = false }) {
           !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.q)
         ) {
           setError(new Error(
-            "Enter the full request reference or exact registered email."
+            "Enter the full request reference or exact patient email."
           ));
           return;
         }
@@ -117,12 +119,12 @@ export function Queue({ calendar = false }) {
           </select>
         </label>
         <label>
-          Exact reference / registered email
+          Exact reference / patient email
           <input type="search" autoComplete="off" maxLength={254}
             value={draft.q}
             onChange={e => change("q", e.target.value.trim())} />
         </label>
-        <div className="staff-filter-buttons"><button>Apply filters</button><button type="button" onClick={()=>apply(initial)}>Reset filters</button><button type="button" onClick={state.reload}>Refresh</button></div>
+        <div className="staff-filter-buttons"><button>Apply filters</button><button type="button" onClick={()=>apply({from:calendar?today:"",to:calendar?addDays(today,6):"",status:calendar?"pending,approved":"pending",upcoming:"",locationId:"",providerId:"",q:""})}>Reset filters</button><button type="button" onClick={state.reload}>Refresh</button></div>
       </form>
 
       <Problem error={error} />
@@ -135,7 +137,7 @@ export function Queue({ calendar = false }) {
       <Resource state={state}>{data => (
         <>
           <p className="staff-help">
-            {data.total} matching {data.total === 1 ? "appointment" : "appointments"} · {filters.from ? "Selected date range" : "All dates"}. Status counts below use the same date and search filters.
+            {data.total} matching {data.total === 1 ? "appointment" : "appointments"} · {filters.from ? "Selected date range" : filters.upcoming ? "Upcoming only" : "All dates"}. Status counts below use the same date and search filters.
           </p>
           <div className="staff-counts">
             {Object.entries(data.counts).map(([status, count]) => (

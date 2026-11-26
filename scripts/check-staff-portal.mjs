@@ -43,7 +43,7 @@ try {
   const session={name:"Synthetic team member",grants:[{role,locationId:1,providerId:1}]};
   const basePath=workspaceHome(session);
   const value={session,options,basePath,can:p=>staffPermissions[role].includes(p),pairsFor:()=>[]};
-  const summary={pending:3,today:4,upcoming:7,reviews:2,patients:role==="administrator"?12:null,clinicTimeZone:"America/Chicago"};
+  const summary={todayDate:"2026-11-26",pending:3,today:4,upcoming:7,reviews:2,patients:role==="administrator"?12:null,clinicTimeZone:"America/Chicago"};
   const dashboard=React.createElement("section",{className:"workspace-dashboard"},
     React.createElement(DashboardWelcome,{session,basePath,onRefresh:()=>{}}),
     React.createElement(DashboardMetrics,{data:summary,basePath}),

@@ -16,8 +16,8 @@ export function DashboardWelcome({session,basePath,onRefresh}) {
 export function DashboardMetrics({data,basePath}) {
   const metrics=[
     ["Pending requests",data.pending,"/appointments","appointments"],
-    ["Approved today",data.today,"/calendar","calendar"],
-    ["Upcoming reservations",data.upcoming,"/calendar","availability"],
+    ["Approved today",data.today,"/appointments?status=approved&from="+data.todayDate+"&to="+data.todayDate,"calendar"],
+    ["Upcoming reservations",data.upcoming,"/appointments?status=pending,approved&upcoming=1","availability"],
     ["Reviews to check",data.reviews,"/reviews","reviews"],
     ...(data.patients !== null ? [["Verified patients",data.patients,"/patients","patients"]] : [])
   ];

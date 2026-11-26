@@ -61,7 +61,7 @@ const joins = `
   JOIN appointment_types t ON t.id=r.type_id`;
 
 const rowView = row => {
-  const { contact_enc, ...safe } = row;
+  const { contact_enc, accountEmailMatches, ...safe } = row;
   const contact = contact_enc ? decrypt(contact_enc) : {};
   return {
     ...safe,
@@ -193,6 +193,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
     const q = z.object({
       from: z.string().optional(), to: z.string().optional(),
       status: z.string().optional(),
+      upcoming: z.enum(["1"]).optional(),
       locationId: queryId.optional(),
       providerId: queryId.optional(),
       q: z.string().trim().max(254).optional(),
@@ -214,6 +215,11 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       params.push(from.toUTC().toJSDate(), to.plus({ days: 1 }).toUTC().toJSDate());
     }
 
+    if (q.upcoming) {
+      clauses.push("r.starts_at>=?");
+      params.push((await databaseNow(c)).toJSDate());
+    }
+
     for (const [key, column] of [
       ["locationId", "location_id"], ["providerId", "provider_id"]
     ]) if (q[key]) {
@@ -227,12 +233,20 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
         params.push(q.q);
       } else {
         const email = z.string().email().parse(q.q).toLowerCase();
-        clauses.push(`EXISTS (
-          SELECT 1 FROM patient_request_links x
-          JOIN patient_accounts a ON a.id=x.patient_id
-          WHERE x.request_id=r.id AND a.email_hash=?
-        )`);
-        params.push(digest("patient-email:" + email));
+        const candidates = await query(
+          `SELECT ${columns},EXISTS (
+            SELECT 1 FROM patient_request_links x JOIN patient_accounts a ON a.id=x.patient_id
+            WHERE x.request_id=r.id AND a.email_hash=?
+          ) AS accountEmailMatches ${joins} WHERE ${clauses.join(" AND ")} ORDER BY r.starts_at,r.id`,
+          [digest("patient-email:"+email),...params],c);
+        const matches = candidates.filter(row=>row.accountEmailMatches || String(decrypt(row.contact_enc).email || "").toLowerCase()===email);
+        const selected = q.status ? z.array(z.enum(statuses)).min(1).max(7).parse(q.status.split(",")) : null;
+        const counts = Object.fromEntries(statuses.map(status=>[status,0]));
+        for (const row of matches) counts[row.status]++;
+        const filtered = selected ? matches.filter(row=>selected.includes(row.status)) : matches;
+        const page=filtered.slice(q.offset,q.offset+50);
+        for (const row of page) await audit(c,row.reference,ctx.subject,"request.listed");
+        return {items:page.map(rowView),counts,total:filtered.length,nextOffset:filtered.length>q.offset+50&&q.offset<10000?q.offset+50:null,clinicTimeZone:config.zone};
       }
     }
 

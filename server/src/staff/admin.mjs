@@ -20,7 +20,7 @@ export function mountAdmin({ add, need, scopeSQL }) {
       const [row] = await query("SELECT COUNT(*) AS count FROM patient_accounts WHERE disabled_at IS NULL AND email_verified_at IS NOT NULL", [], c);
       patients = Number(row.count);
     }
-    return {pending:Number(counts.pending || 0), today:Number(counts.today || 0), upcoming:Number(counts.upcoming || 0), reviews:Number(reviews.count), patients, clinicTimeZone:config.zone};
+    return {todayDate:now.toISODate(),pending:Number(counts.pending || 0), today:Number(counts.today || 0), upcoming:Number(counts.upcoming || 0), reviews:Number(reviews.count), patients, clinicTimeZone:config.zone};
   });
 
   add("get", "/directory", async (req, ctx, c) => {

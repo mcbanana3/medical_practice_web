@@ -191,9 +191,10 @@ function Account() {
 
 export function StaffRoutes() {
     const { basePath, can } = useStaff();
+    const { search } = useLocation();
     return <Routes>
       <Route path={basePath} element={<Dashboard />} />
-      <Route path={basePath + "/appointments"} element={<Gate permission="read"><Queue /></Gate>} />
+      <Route path={basePath + "/appointments"} element={<Gate permission="read"><Queue key={search} /></Gate>} />
       <Route path={basePath + "/calendar"} element={<Gate permission="read"><Queue calendar /></Gate>} />
       <Route path={basePath + "/requests/:ref"} element={<Gate permission="read"><RequestDetail /></Gate>} />
       <Route path={basePath + "/patients"} element={<Gate permission="access"><PatientDirectory /></Gate>} />
