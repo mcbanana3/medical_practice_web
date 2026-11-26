@@ -17,7 +17,7 @@ import StaffApp from "./staff/StaffApp.jsx";
 function Root() {
   const { pathname } = useLocation();
 
-  return /^\/staff(?:\/|$)/.test(pathname)
+  return /^\/(?:staff|admin)(?:\/|$)/.test(pathname)
     ? <StaffApp />
     : <App />;
 }
@@ -33,7 +33,7 @@ const application = (
 );
 
 const privateStaffRoute =
-  /^\/staff(?:\/|$)/.test(window.location.pathname);
+  /^\/(?:staff|admin)(?:\/|$)/.test(window.location.pathname);
 
 if (!privateStaffRoute && container.querySelector("[data-app]")) {
   hydrateRoot(container, application);

@@ -325,6 +325,11 @@ export function mountPatientRecords(router) {
         reason: contact.reason || ""
       },
 
+      patientNotes: (await query(
+        "SELECT note_enc,created_at AS createdAt FROM appointment_patient_notes WHERE request_id=? ORDER BY created_at DESC,id DESC LIMIT 100",
+        [row.id]
+      )).map(note=>({text:decrypt(note.note_enc).text,createdAt:note.createdAt.toISOString()})),
+
       canCancel: active && future,
 
       canReschedule:

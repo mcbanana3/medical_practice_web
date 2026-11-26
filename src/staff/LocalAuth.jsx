@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { WorkspaceIcon } from "./WorkspaceShell.jsx";
+import { practice } from "../content.js";
 import { post, publicPost, params } from "./client.js";
 import {
   useStaff, useResource, Resource, Problem, PairSelect, pairKey, Confirm, Value
@@ -12,25 +14,20 @@ const authPaths = new Set([
 export const isLocalAuthPath = path => authPaths.has(path);
 
 function Password({ name = "password", label = "New password", current = false }) {
-  return (
-    <label>
-      {label}
-      <input
-        name={name} type="password" required
-        minLength={current ? undefined : 8}
-        maxLength={current ? 1024 : 256}
-        autoComplete={current ? "current-password" : "new-password"}
-      />
-    </label>
-  );
+  const id = useId();
+  const [visible,setVisible] = useState(false);
+  return <div className="staff-password-field"><label htmlFor={id}>{label}</label><div className="staff-password-control">
+    <input id={id} data-staff-password="" name={name} type={visible ? "text" : "password"} required minLength={current ? undefined : 8} maxLength={current ? 1024 : 256} autoComplete={current ? "current-password" : "new-password"}/>
+    <button type="button" aria-label={(visible?"Hide ":"Show ")+label.toLowerCase()} aria-pressed={visible} onClick={()=>setVisible(value=>!value)}>{visible?"Hide":"Show"}</button>
+  </div></div>;
 }
 
-export function LocalAuthPage({ onLogin, signedIn }) {
+export function LocalAuthPage({ onLogin, signedIn, home = "/staff" }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const tokenRef = useRef(null);
   if (tokenRef.current === null) {
-    tokenRef.current = new URLSearchParams(window.location.hash.slice(1))
+    tokenRef.current = new URLSearchParams(typeof window === "undefined" ? "" : window.location.hash.slice(1))
       .get("token") || "";
   }
   const [busy, setBusy] = useState(false);
@@ -46,12 +43,12 @@ export function LocalAuthPage({ onLogin, signedIn }) {
     }
   }, []);
   useEffect(() => {
-    if (pathname === "/staff/login" && signedIn) navigate("/staff", { replace: true });
-  }, [pathname, signedIn, navigate]);
+    if (pathname === "/staff/login" && signedIn) navigate(home, { replace: true });
+  }, [pathname, signedIn, navigate, home]);
 
   const mode = pathname.split("/").at(-1);
   const titles = {
-    login: "Staff sign in",
+    login: "Practice team sign in",
     "forgot-password": "Reset your password",
     "reset-password": "Choose a new password",
     activate: "Set up your staff password",
@@ -70,10 +67,12 @@ export function LocalAuthPage({ onLogin, signedIn }) {
   const changesPassword = ["reset-password", "activate", "recover"].includes(mode);
 
   return (
-    <section className="staff-login">
-      <p className="staff-eyebrow">Private staff access</p>
-      <h1>{titles[mode]}</h1>
-      {mode === "login" && <p>Use your staff email and password. Patient accounts are separate.</p>}
+    <div className="staff-auth-scene"><header className="staff-auth-header"><Link to="/" className="workspace-brand"><img className="workspace-practice-logo" src="/favicon.svg" alt="" aria-hidden="true" width="46" height="46"/><span>Harika Thummala<small>Internal Medicine</small></span></Link><Link to="/" className="staff-auth-return">Back to practice website <span aria-hidden="true">↗</span></Link></header>
+    <div className="staff-auth-shell"><aside className="staff-auth-story"><div><span className="staff-auth-story-icon"><WorkspaceIcon name="access"/></span><p className="staff-auth-overline">Your practice. Your people.</p><h2>A calmer start<br/>to your workday.</h2><p className="staff-auth-description">A thoughtful space to organise appointments, support patients, and keep the day moving.</p>
+      <ul>{[["appointments","Appointments, in focus","Requests, schedules, and follow-up in one place."],["reviews","Every experience matters","Stay connected to patient feedback."],["access","Access that fits your role","Your account opens the tools assigned to you."]].map(([icon,title,text])=><li key={title}><WorkspaceIcon name={icon}/><div><strong>{title}</strong><p>{text}</p></div></li>)}</ul></div><div className="staff-auth-story-footer"><span>{practice.clinician}</span><span>Internal Medicine · Odessa, Texas</span></div></aside>
+    <section className="staff-login staff-auth-card" aria-labelledby="staff-auth-title"><div className="staff-auth-card-top"><span className="staff-auth-badge"><WorkspaceIcon name="access"/>Private team access</span><span>Staff & doctor</span></div>
+      <h1 id="staff-auth-title">{mode === "login" ? "Welcome back." : titles[mode]}</h1>
+      {mode === "login" && <p>Sign in with your practice email to continue to your workspace.</p>}
       {mode === "forgot-password" && <p>Enter your staff email to request a single-use reset link.</p>}
       {mode === "recover" && (
         <p>Use one of your saved offline codes. Successful recovery revokes all old codes and sessions.</p>
@@ -102,7 +101,7 @@ export function LocalAuthPage({ onLogin, signedIn }) {
             form.reset();
             if (mode === "login") {
               await onLogin();
-              navigate("/staff", { replace: true });
+              // The verified session decides the destination.
             } else {
               tokenRef.current = "";
               setFinished(true);
@@ -110,7 +109,7 @@ export function LocalAuthPage({ onLogin, signedIn }) {
             }
           } catch (failure) {
             setError(failure);
-            form.querySelectorAll('input[type="password"]').forEach(input => {
+            form.querySelectorAll('[data-staff-password]').forEach(input => {
               input.value = "";
             });
           } finally {
@@ -121,7 +120,7 @@ export function LocalAuthPage({ onLogin, signedIn }) {
             <legend>Account verification</legend>
             {["login", "forgot-password", "recover"].includes(mode) && (
               <label>
-                Staff email
+                Practice email
                 <input name="email" type="email" required maxLength={254}
                   autoComplete={mode === "login" ? "username" : "email"} />
               </label>
@@ -156,8 +155,8 @@ export function LocalAuthPage({ onLogin, signedIn }) {
           <Link to="/staff/recover">Use a backup code</Link>
         )}
       </div>
-      <p className="staff-help">There is no public staff registration.</p>
-    </section>
+      <div className="staff-auth-invite-note"><WorkspaceIcon name="info"/><p>Team access is by invitation. Contact your practice administrator if you need an account.</p></div>
+    </section></div><footer className="staff-auth-footer"><span>{practice.name}</span><span>One sign-in. The right workspace for your role.</span></footer></div>
   );
 }
 
@@ -186,7 +185,7 @@ function MutationForm({ title, path, children, button, confirmPassword, onDone }
         onDone?.(result);
       } catch (failure) {
         setError(failure);
-        form.querySelectorAll('input[type="password"]').forEach(input => {
+        form.querySelectorAll('[data-staff-password]').forEach(input => {
           input.value = "";
         });
       } finally {
@@ -274,7 +273,7 @@ export function LocalAccount() {
 }
 
 export function LocalAccess() {
-  const { pairsFor, session, endSession } = useStaff();
+  const { pairsFor, session, endSession, basePath } = useStaff();
   const pairs = pairsFor("access");
   const [pair, setPair] = useState(pairs[0] ? pairKey(pairs[0]) : "");
   const [search, setSearch] = useState("");
@@ -291,21 +290,20 @@ export function LocalAccess() {
 
   useEffect(() => {
     setEditName(selected?.displayName || "");
-    setEditRoles(selected?.grants.filter(g =>
-      pairKey(g) === pair
-    ).map(g => g.role) || []);
+    const assigned = selected?.grants.filter(g => pairKey(g) === pair).map(g => g.role) || [];
+    setEditRoles(assigned.includes("administrator") ? ["administrator"] : assigned.some(role => ["scheduler", "clinician"].includes(role)) ? ["scheduler"] : []);
   }, [selectedId, pair, state.data]);
 
   function roleFields(value, update) {
     return (
       <fieldset>
         <legend>Roles for the selected resource pair</legend>
-        {["scheduler", "clinician", "administrator", "auditor"].map(role => (
+        {["scheduler", "administrator"].map(role => (
           <label className="staff-check" key={role}>
             <input type="checkbox" checked={value.includes(role)}
               onChange={event => update(current => event.target.checked
-                ? [...current, role] : current.filter(item => item !== role))} />
-            <span>{role}</span>
+                ? [role] : [])} />
+            <span>{role === "administrator" ? "Admin — full practice access" : "Staff — appointments and reviews"}</span>
           </label>
         ))}
       </fieldset>
@@ -322,10 +320,10 @@ export function LocalAccess() {
       <h1>Staff accounts</h1>
       <p>
         Accounts use local passwords. Disable access instead of deleting audit history.
-        Administrator access does not automatically grant medical access.
+        Admins have full practice access, including patient-reported medical information. Staff can manage appointments and reviews.
       </p>
       <p>
-        <Link to="/staff/account">Confirm your password in Account</Link>
+        <Link to={basePath + "/account"}>Confirm your password in Account</Link>
         {" "}before sensitive changes.
       </p>
       <p role="status">{message}</p>

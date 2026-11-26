@@ -35,7 +35,7 @@ export default function Home() {
 
             <p className="hero-note">
               <span aria-hidden="true" />
-              Requests remain pending until staff approval.
+              Requests need staff approval before the appointment starts.
             </p>
           </div>
 

@@ -334,7 +334,7 @@ export default function Booking() {
   return (
     <>
       <PageIntro eyebrow="Appointments" title="Request an appointment.">
-        <p>Requests remain pending until staff approval. Submission is not confirmation.</p>
+        <p>Requests need staff approval before the appointment starts. Unapproved requests expire at their start time.</p>
       </PageIntro>
 
       <section className="section section-tight booking-live">

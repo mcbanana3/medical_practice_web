@@ -72,3 +72,7 @@
     grid-template-columns: 1fr;
   }
 }
+.patient-appointment-notes { padding:clamp(20px,4vw,32px); margin:28px 0; border:1px solid #e2ddec; border-top:3px solid #7081c5; border-radius:18px; background:#faf8ff; }
+.patient-appointment-notes h2 { font-size:1.7rem; }
+.patient-appointment-notes article { margin-top:20px; padding-top:18px; border-top:1px solid #e1dcec; }
+.patient-appointment-note-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.85; color:#39445f; }

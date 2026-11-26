@@ -8,19 +8,10 @@ import { api } from "./client.js";
 export const StaffContext = createContext(null);
 export const useStaff = () => useContext(StaffContext);
 
-const operational = [
-  "read", "decide", "patients", "availability", "link", "outcome", "reviews_read"
-];
-
-export const permissions = {
-  scheduler: operational,
-  clinician: [...operational, "medical"],
-  administrator: [...operational, "audit", "access", "settings"],
-  auditor: ["audit"]
-};
+export { staffPermissions as permissions } from "../../shared/staff-permissions.js";
 
 export const pairKey = p => `${p.locationId}:${p.providerId}`;
-export const recordUrl = id => `/staff/requests/${encodeURIComponent(id)}`;
+export const recordUrl = (id, basePath = "/staff") => `${basePath}/requests/${encodeURIComponent(id)}`;
 
 export function dateTime(value, zone) {
   return new Intl.DateTimeFormat("en-US", {
@@ -227,47 +218,20 @@ export function PairSelect({ pairs, value, onChange, label = "Location / provide
 }
 
 export function AppointmentTable({ items, zone }) {
-  if (!items.length) {
-    return <div className="staff-empty">No appointments match these filters.</div>;
-  }
-
-  return (
-    <div className="staff-table" tabIndex={0} aria-label="Appointments; scroll horizontally if necessary">
-      <table>
-        <caption>Appointments — {zone}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Request</th>
-            <th scope="col">Clinic-local time</th>
-            <th scope="col">Status</th>
-            <th scope="col">Location / provider</th>
-            <th scope="col">Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(item => (
-            <tr key={item.reference}>
-              <td>
-                <Link
-                  to={recordUrl(item.reference)}
-                  aria-label={`Open request ${item.reference}`}
-                >
-                  {item.reference.slice(0, 8)}
-                </Link>
-              </td>
-              <td>
-                {dateTime(item.startsAt, zone)}
-                <br />to {dateTime(item.endsAt, zone)}
-              </td>
-              <td><span className="staff-status">{item.status}</span></td>
-              <td>{item.location}<br />{item.provider}</td>
-              <td>{item.appointmentType}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const { basePath } = useStaff();
+  if (!items.length) return <div className="staff-empty"><strong>No appointments match these filters.</strong><p>Try resetting the filters or choosing a different status.</p></div>;
+  return <div className="staff-table staff-patient-table" tabIndex={0} aria-label="Patient appointments; scroll horizontally if necessary">
+    <table role="table"><caption>Patient appointments · {zone}</caption>
+      <thead role="rowgroup"><tr role="row"><th scope="col">Patient & contact</th><th scope="col">Appointment</th><th scope="col">Visit details</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+      <tbody role="rowgroup">{items.map(item => <tr role="row" key={item.reference}>
+        <td role="cell" data-label="Patient"><div className="staff-patient-cell"><span className="staff-patient-avatar" aria-hidden="true">{(item.patient?.name || "P").trim().split(/\s+/).slice(0,2).map(part=>part[0]).join("")}</span><div><Link className="staff-patient-name" to={recordUrl(item.reference,basePath)}>{item.patient?.name || "Patient"}</Link><span className="staff-patient-contact">{item.patient?.email || "Email not recorded"}</span><span className="staff-patient-contact">{item.patient?.phone || "Phone not recorded"}</span></div></div></td>
+        <td role="cell" data-label="Appointment"><strong>{dateTime(item.startsAt,zone)}</strong><span className="staff-patient-contact">Until {new Intl.DateTimeFormat("en-US",{timeZone:zone,hour:"numeric",minute:"2-digit"}).format(new Date(item.endsAt))} · {Math.round((new Date(item.endsAt)-new Date(item.startsAt))/60000)} minutes</span></td>
+        <td role="cell" data-label="Visit details"><p className="staff-visit-reason">{item.patient?.reason || "Reason not recorded"}</p><span className="staff-patient-contact">Reference: {item.reference.slice(0,8)}</span></td>
+        <td role="cell" data-label="Status"><span className={"staff-status staff-status--"+item.status}>{item.status.replaceAll("_"," ")}</span></td>
+        <td role="cell" data-label="Action"><Link className="staff-open-request" to={recordUrl(item.reference,basePath)}>View request →</Link></td>
+      </tr>)}</tbody>
+    </table>
+  </div>;
 }
 
 export function Value({ value }) {

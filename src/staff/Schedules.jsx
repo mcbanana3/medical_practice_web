@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { post, params } from "./client.js";
 import {
@@ -13,12 +13,12 @@ const statuses = [
 ];
 
 export function Queue({ calendar = false }) {
-  const { options, pairsFor } = useStaff();
+  const { options, basePath } = useStaff();
   const zone = options.clinicTimeZone;
   const today = clinicDate(new Date(), zone);
   const initial = {
-    from: today,
-    to: addDays(today, calendar ? 6 : 29),
+    from: calendar ? today : "",
+    to: calendar ? addDays(today, 6) : "",
     status: calendar ? "pending,approved" : "pending",
     locationId: "", providerId: "", q: ""
   };
@@ -32,16 +32,11 @@ export function Queue({ calendar = false }) {
     ...filters, offset: offsets.at(-1)
   }));
 
-  const pairs = pairsFor("read");
-  const locations = [...new Map(
-    pairs.map(p => [p.locationId, p])
-  ).values()];
-  const providers = [...new Map(
-    pairs.filter(p =>
-      !draft.locationId ||
-      String(p.locationId) === draft.locationId
-    ).map(p => [p.providerId, p])
-  ).values()];
+
+  useEffect(() => {
+    const timer = window.setInterval(()=>{if (!document.hidden) state.reload();},30000);
+    return ()=>window.clearInterval(timer);
+  },[state.reload]);
 
   function apply(next) {
     const value = calendar
@@ -69,15 +64,15 @@ export function Queue({ calendar = false }) {
   }
 
   return (
-    <section>
+    <section className="staff-queue">
       <p className="staff-eyebrow">Scheduling workspace</p>
       <h1>{calendar ? "Week calendar" : "Appointment request queue"}</h1>
       <p>
         Clinic time zone: <strong>{zone}</strong>.
-        Search accepts an exact request reference or registered account email.
+        {calendar ? "Plan the week ahead." : "All dates are shown by default, including older pending requests."}
       </p>
 
-      <form className="staff-grid" onSubmit={event => {
+      <form className="staff-grid staff-queue-filters" onSubmit={event => {
         event.preventDefault();
         if (
           draft.q &&
@@ -89,16 +84,20 @@ export function Queue({ calendar = false }) {
           ));
           return;
         }
+        if (!calendar && Boolean(draft.from) !== Boolean(draft.to)) {
+          setError(new Error("Choose both dates or clear both to show all requests."));
+          return;
+        }
         apply(draft);
       }}>
         <label>
           {calendar ? "Week beginning" : "From"}
-          <input type="date" required value={draft.from}
+          <input type="date" required={calendar || Boolean(draft.to)} value={draft.from}
             onChange={e => change("from", e.target.value)} />
         </label>
         <label>
           Through
-          <input type="date" required min={draft.from}
+          <input type="date" required={calendar || Boolean(draft.from)} min={draft.from}
             readOnly={calendar} value={draft.to}
             onChange={e => change("to", e.target.value)} />
         </label>
@@ -118,41 +117,17 @@ export function Queue({ calendar = false }) {
           </select>
         </label>
         <label>
-          Location
-          <select value={draft.locationId}
-            onChange={e => change("locationId", e.target.value)}>
-            <option value="">All permitted locations</option>
-            {locations.map(p => (
-              <option key={p.locationId} value={p.locationId}>
-                {p.location}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Provider
-          <select value={draft.providerId}
-            onChange={e => change("providerId", e.target.value)}>
-            <option value="">All permitted providers</option>
-            {providers.map(p => (
-              <option key={p.providerId} value={p.providerId}>
-                {p.provider}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
           Exact reference / registered email
           <input type="search" autoComplete="off" maxLength={254}
             value={draft.q}
             onChange={e => change("q", e.target.value.trim())} />
         </label>
-        <button>Apply filters</button>
+        <div className="staff-filter-buttons"><button>Apply filters</button><button type="button" onClick={()=>apply(initial)}>Reset filters</button><button type="button" onClick={state.reload}>Refresh</button></div>
       </form>
 
       <Problem error={error} />
       <p>
-        <Link to={calendar ? "/staff" : "/staff/calendar"}>
+        <Link to={calendar ? basePath + "/appointments" : basePath + "/calendar"}>
           {calendar ? "Open queue" : "Open calendar"}
         </Link>
       </p>
@@ -160,11 +135,11 @@ export function Queue({ calendar = false }) {
       <Resource state={state}>{data => (
         <>
           <p className="staff-help">
-            Counts match the date, resource, and exact-search filters.
+            {data.total} matching {data.total === 1 ? "appointment" : "appointments"} · {filters.from ? "Selected date range" : "All dates"}. Status counts below use the same date and search filters.
           </p>
           <div className="staff-counts">
             {Object.entries(data.counts).map(([status, count]) => (
-              <button key={status}
+              <button key={status} aria-pressed={filters.status === status}
                 onClick={() => apply({ ...filters, status })}>
                 <span>{status.replaceAll("_", " ")}</span>
                 <strong>{count}</strong>
@@ -200,18 +175,18 @@ export function Queue({ calendar = false }) {
                       {items.map(item => (
                         <Link className="staff-calendar-item"
                           key={item.reference}
-                          to={recordUrl(item.reference)}>
+                          to={recordUrl(item.reference, basePath)}>
                           <strong>{dateTime(item.startsAt, zone)}</strong>
                           <span>{item.status.replaceAll("_", " ")}</span>
-                          <span>{item.appointmentType}</span>
-                          <span>{item.location} / {item.provider}</span>
+                          <strong>{item.patient?.name || "Patient"}</strong>
+                          <span>{item.patient?.phone || item.patient?.email}</span>
                         </Link>
                       ))}
                     </section>
                   );
                 })}
               </div>
-              <h2>Equivalent appointment list</h2>
+              <h2>Patient appointments</h2>
             </>
           )}
 
@@ -236,7 +211,7 @@ export function Queue({ calendar = false }) {
 }
 
 export function Availability() {
-  const { options, pairsFor } = useStaff();
+  const { options, pairsFor, basePath } = useStaff();
   const pairs = pairsFor("availability");
   const [pair, setPair] = useState(pairs[0] ? pairKey(pairs[0]) : "");
   const [from, setFrom] = useState(options.minDate);
@@ -297,7 +272,7 @@ export function Availability() {
 }
 
 function AvailabilityEditor({ data, scope, reload, saved }) {
-  const { options } = useStaff();
+  const { options, basePath } = useStaff();
   const [weekly, setWeekly] = useState(data.weekly);
   const [exceptions, setExceptions] = useState(data.exceptions);
   const [preview, setPreview] = useState(null);
@@ -474,7 +449,7 @@ function AvailabilityEditor({ data, scope, reload, saved }) {
               <ul>
                 {preview.conflicts.map(item => (
                   <li key={item.reference}>
-                    <Link to={recordUrl(item.reference)}>
+                    <Link to={recordUrl(item.reference, basePath)}>
                       {item.reference}
                     </Link>
                     {" · "}{item.status}

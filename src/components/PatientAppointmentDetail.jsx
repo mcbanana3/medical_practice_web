@@ -283,7 +283,7 @@ export default function PatientAppointmentDetail({
       <Notice title={statusLabels[data.status] || data.status}>
         {data.status === "pending"
           ? "This request is not a confirmed appointment."
-          : "Review the current status before making changes."}
+          : data.status === "expired" ? "This request was not approved before its approval window closed. Contact the practice to arrange another time." : "Review the current status before making changes."}
       </Notice>
 
       {relation.originalReference && (
@@ -329,6 +329,8 @@ export default function PatientAppointmentDetail({
         ["Reason for visit", data.contact.reason || "Not provided"],
         ["Reference", data.reference]
       ]} />
+
+      <section className="patient-appointment-notes" aria-labelledby="patient-notes-title"><p className="eyebrow">From your care team</p><h2 id="patient-notes-title">Appointment notes &amp; follow-up</h2>{data.patientNotes?.length ? data.patientNotes.map((note,index)=><article key={index}><p className="help">Posted {dateTime(note.createdAt,data.clinicTimeZone)}</p><p className="patient-appointment-note-text">{note.text}</p></article>) : <p>No notes have been shared for this appointment yet.</p>}</section>
 
       {error && (
         <div

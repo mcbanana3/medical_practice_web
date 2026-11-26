@@ -107,7 +107,8 @@ export function renderMessage(payload, currentStatus) {
     reschedule_declined: ["Reschedule request declined", "The replacement request was declined. Its time was released. Check your original appointment's current status in the portal or contact the practice."],
     reschedule_cancelled: ["Reschedule request cancelled", "The replacement request was cancelled and its time was released. Cancelling only a replacement leaves the original unchanged; cancelling the original also cancels its pending replacement."],
     reschedule_closed: ["Reschedule closed: original retained", "A replacement request was closed. Your original appointment remains active with its existing status."],
-    expired: ["Appointment request expired", "This request expired under the previous reservation policy."]
+    note_added: ["An appointment update is available", "The practice added a note to your appointment. Sign in to your patient portal to read it. The note itself is not included in this email."],
+    expired: ["Appointment request expired", "This request was not approved before its approval window closed and is now expired. It is not a confirmed appointment. Contact the practice if you still need an appointment."]
   };
   const [subject, message] = messages[payload.event] || ["Appointment update", "An appointment record was updated."];
   const admin = payload.recipient === "admin";

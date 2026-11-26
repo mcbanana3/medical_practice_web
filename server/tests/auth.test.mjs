@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { config } from "../src/config.mjs";
-import { pool, query, decrypt } from "../src/db.mjs";
+import { pool, query, decrypt, encrypt, newId } from "../src/db.mjs";
 import { createApplication } from "../src/application.mjs";
 
 let server;
@@ -10,6 +10,8 @@ let base;
 
 async function clean() {
   for (const table of [
+    "appointment_patient_notes",
+    "staff_notes",
     "patient_reschedules",
     "patient_details",
     "patient_guest_link_codes",
@@ -231,6 +233,14 @@ test("returning patient booking validates contacts and links the 30-minute reque
  assert.equal(detail.status,200);
  assert.equal(new Date(detail.data.endsAt)-new Date(detail.data.startsAt),1800000);
  assert.equal(detail.data.status,"pending");
+ const ref=created.data.receipt.reference;
+ await query("INSERT INTO appointment_patient_notes VALUES(?,?,?,?,UTC_TIMESTAMP(3))",[newId(),ref,"synthetic-operator",encrypt({text:"Synthetic patient-visible follow-up instructions."})]);
+ await query("INSERT INTO staff_notes VALUES(?,?,?,?,UTC_TIMESTAMP(3))",[newId(),ref,"synthetic-operator",encrypt({text:"Synthetic private staff note."})]);
+ const withNotes=await client.call("/api/portal/appointments/"+ref);
+ assert.equal(withNotes.data.patientNotes[0].text,"Synthetic patient-visible follow-up instructions.");
+ assert.ok(!JSON.stringify(withNotes.data).includes("Synthetic private staff note."));
+ const other=await verifiedClient("notes-other@example.test");
+ assert.equal((await other.call("/api/portal/appointments/"+ref)).status,404);
 });
 
 

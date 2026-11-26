@@ -13,7 +13,7 @@ const confirmations = [
 
 export default function ReviewModeration() {
   const { pairsFor } = useStaff();
-  const pairs = pairsFor("access");
+  const pairs = pairsFor("reviews_moderate");
   const [status, setStatus] = useState("pending");
   const [pair, setPair] = useState("");
   const [offset, setOffset] = useState(0);
@@ -109,12 +109,9 @@ function ReviewItem({ review, zone, reload, saved }) {
   const pending = review.status === "pending";
 
   return (
-    <article className="staff-panel">
-      <p className="staff-eyebrow">{review.status}</p>
-      <h2>{review.displayName}</h2>
-      <p>{review.location} / {review.provider}</p>
-      <p>Submitted {dateTime(review.createdAt, zone)}</p>
-      <p>{review.rating === null ? "No rating submitted" : `Rating: ${review.rating} out of 5`}</p>
+    <article className="staff-panel workspace-review-card">
+      <div className="workspace-review-heading"><div><p className="staff-eyebrow">{review.status}</p><h2>{review.displayName}</h2></div><p className="staff-help">Submitted {dateTime(review.createdAt, zone)}</p></div>
+      {review.rating == null ? <p className="staff-help">No rating submitted</p> : <div className="workspace-review-rating"><span role="img" aria-label={review.rating+" out of 5 stars"}>{Array.from({length:5},(_,index)=><span key={index} aria-hidden="true" className={index<review.rating?"is-filled":""}>★</span>)}</span><strong>{review.rating}/5</strong></div>}
       <blockquote className="staff-pre">{review.text}</blockquote>
       <p>Recorded publication consent: {review.publicationConsent ? "Yes" : "No"}</p>
       {review.internalReason && (
@@ -150,14 +147,14 @@ function ReviewItem({ review, zone, reload, saved }) {
                   onClick={() => setAction("approve")}>
                   Approve and publish
                 </button>
-                <button disabled={busy || reason.trim().length < 3}
+                <button className="staff-button--danger" disabled={busy || reason.trim().length < 3}
                   onClick={() => setAction("reject")}>
                   Reject
                 </button>
               </>
             )}
             {review.status === "approved" && (
-              <button disabled={busy || reason.trim().length < 3}
+              <button className="staff-button--danger" disabled={busy || reason.trim().length < 3}
                 onClick={() => setAction("hide")}>
                 Hide from public site
               </button>

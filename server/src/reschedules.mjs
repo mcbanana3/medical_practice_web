@@ -261,12 +261,12 @@ export async function applyRescheduleDecision(
         "request.replaced",
         { replacementReference: row.id }
       );
-    } else if (status === "declined") {
+    } else if (["declined", "expired"].includes(status)) {
       await query(
         `UPDATE patient_reschedules
-         SET state='declined'
+         SET state=?
          WHERE replacement_id=?`,
-        [row.id],
+        [status, row.id],
         connection
       );
 
@@ -279,8 +279,8 @@ export async function applyRescheduleDecision(
     }
   }
 
-  // Declining the original also closes its pending replacement.
-  if (status === "declined") {
+  // Closing an unapproved original also closes its pending replacement.
+  if (["declined", "expired"].includes(status)) {
     const [outgoing] = await query(
       `SELECT *
        FROM patient_reschedules
@@ -301,16 +301,16 @@ export async function applyRescheduleDecision(
         await closeReservation(
           connection,
           replacement,
-          "declined",
+          status,
           actor
         );
       }
 
       await query(
         `UPDATE patient_reschedules
-         SET state='declined'
+         SET state=?
          WHERE replacement_id=?`,
-        [outgoing.replacement_id],
+        [status, outgoing.replacement_id],
         connection
       );
     }

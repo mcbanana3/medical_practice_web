@@ -318,14 +318,14 @@ export function createPublicReviewsRouter({
 
 export function mountReviewModeration({ add, need, scopeSQL }) {
   add("get", "/reviews", async (req, ctx, connection) => {
-    need(ctx, "access");
+    need(ctx, "reviews_moderate");
     const input = z.object({
       status: z.enum(statuses).default("pending"),
       locationId: queryId.optional(),
       providerId: queryId.optional(),
       offset: z.coerce.number().int().min(0).max(10000).default(0)
     }).strict().parse(req.query);
-    const scope = scopeSQL(ctx, "access", "r");
+    const scope = scopeSQL(ctx, "reviews_moderate", "r");
     const where = ["r.status=?", `(${scope.sql})`];
     const values = [input.status, ...scope.params];
 
@@ -376,14 +376,14 @@ export function mountReviewModeration({ add, need, scopeSQL }) {
       reason: z.string().trim().max(500).optional()
     }).strict().parse(req.body);
 
-    const scope = scopeSQL(ctx, "access", "r");
+    const scope = scopeSQL(ctx, "reviews_moderate", "r");
     const [row] = await query(
       `SELECT r.* FROM public_review_submissions r
        WHERE r.id=? AND (${scope.sql}) FOR UPDATE`,
       [reviewId, ...scope.params], connection
     );
     if (!row) fail(404, "NOT_FOUND", "Review unavailable.");
-    need(ctx, "access", Number(row.location_id), Number(row.provider_id));
+    need(ctx, "reviews_moderate", Number(row.location_id), Number(row.provider_id));
 
     if (row.version !== body.expectedVersion ||
         row.status === "withdrawn" ||

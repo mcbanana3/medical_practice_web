@@ -10,6 +10,7 @@ import { rateLimit } from "../security.mjs";
 import {
   S, PERMS, can, readStaff, mountAuth, clearCookie
 } from "./auth.mjs";
+import { mountAdmin } from "./admin.mjs";
 import { mountOperations } from "./operations.mjs";
 import { mountManagement } from "./management.mjs";
 import { mountLocalAccounts } from "./local-accounts.mjs";
@@ -172,6 +173,7 @@ export function createStaffRouter() {
   };
 
   mountAuth(router);
+  mountAdmin({ add, need, scopeSQL });
   mountOperations({ add, need, scoped, scopeSQL });
   mountLocalAccounts({ add, need, scopeSQL });
   mountReviewModeration({ add, need, scopeSQL });

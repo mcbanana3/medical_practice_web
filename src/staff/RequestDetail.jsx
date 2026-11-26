@@ -32,8 +32,9 @@ export default function RequestDetail() {
 }
 
 function Editor({ data: d, reload, saved }) {
-  const { can, options } = useStaff();
+  const { can, options, basePath } = useStaff();
   const [reason, setReason] = useState("");
+  const [patientNote, setPatientNote] = useState("");
   const [date, setDate] = useState("");
   const [slot, setSlot] = useState("");
   const [confirm, setConfirm] = useState(null);
@@ -54,14 +55,16 @@ function Editor({ data: d, reload, saved }) {
 
   async function perform(path, body) {
     const result = await post(path, {
-      ...body, ...(reason ? { staffReason: reason } : {})
+      ...body, ...(!path.endsWith("/review-request") && reason ? { staffReason: reason } : {})
     });
     saved(result);
   }
 
-  const action = (kind, title, explanation) => (
+  const action = (kind, title, explanation, disabled = false) => (
     <button
       key={kind}
+      className={["cancel","decline","no_show"].includes(kind) ? "staff-button--danger" : ""}
+      disabled={disabled}
       type="button"
       onClick={() => show(
         title,
@@ -80,11 +83,8 @@ function Editor({ data: d, reload, saved }) {
           <span className="staff-status">{d.status}</span>
           <span>Version {d.version}</span>
         </div>
-        <h2 className="staff-reference">{d.reference}</h2>
+        <h2>{d.contact.name}</h2><p className="staff-reference">Request {d.reference}</p>
         <dl className="staff-facts">
-          <div><dt>Appointment type</dt><dd>{d.appointmentType}</dd></div>
-          <div><dt>Location</dt><dd>{d.location}</dd></div>
-          <div><dt>Provider</dt><dd>{d.provider}</dd></div>
           <div><dt>Starts</dt><dd>{dateTime(d.startsAt, zone)}</dd></div>
           <div><dt>Ends</dt><dd>{dateTime(d.endsAt, zone)}</dd></div>
           <div><dt>Clinic time zone</dt><dd>{zone}</dd></div>
@@ -94,8 +94,8 @@ function Editor({ data: d, reload, saved }) {
           <div><dt>Phone</dt><dd>{d.contact.phone || "Not provided"}</dd></div>
         </dl>
 
-        {d.patientReference && (
-          <Link to={"/staff/patients?q=" + encodeURIComponent(d.patientReference)}>
+        {d.patientReference && can("patients", d.locationId, d.providerId) && (
+          <Link to={basePath + "/patients?q=" + encodeURIComponent(d.patientReference)}>
             Open permitted patient summary
           </Link>
         )}
@@ -109,16 +109,18 @@ function Editor({ data: d, reload, saved }) {
               /^[a-f0-9]{32}$/.test(value || "")
             ).map(([key, value]) => (
               <li key={key}>
-                {key}: <Link to={recordUrl(value)}>{value}</Link>
+                {key}: <Link to={recordUrl(value, basePath)}>{value}</Link>
               </li>
             ))}
           </ul>
         </section>
       )}
 
+      {can("review_invite", d.locationId, d.providerId) && <section className="staff-panel"><h2>Request patient feedback</h2><p>Send an optional review invitation after the visit. One invitation is allowed per appointment.</p>{d.reviewInvitation ? <p>Review email: {d.reviewInvitation.status}{d.reviewInvitation.sentAt ? " · " + dateTime(d.reviewInvitation.sentAt, zone) : ""}</p> : <button disabled={!(d.status === "completed" || (d.status === "approved" && new Date(d.endsAt) <= new Date()))} onClick={()=>show("Send review request",()=>perform("/requests/"+d.reference+"/review-request",{}),<p>Email a review link to {d.contact.email}?</p>)}>Send review request</button>}</section>}
+      {can("access") && d.notifications?.length > 0 && <section className="staff-panel"><h2>Appointment email delivery</h2>{d.notifications.map((item,index)=><p key={index}>{item.event} · {item.recipient} · {item.status}</p>)}</section>}
       {(decide || outcome) && (
         <section className="staff-panel">
-          <h2>Record actions</h2>
+          <h2>Appointment status &amp; attendance</h2>{d.status === "approved" && <p className="staff-help">Completion is available after the scheduled end time; attendance can be recorded after the start time. Refresh the status if the appointment time has just passed.</p>}
           <label>
             Private administrative note — optional, not emailed
             <textarea
@@ -142,8 +144,8 @@ function Editor({ data: d, reload, saved }) {
               action("cancel", "Cancel appointment/request", "This cancels the selected future reservation and any pending patient replacement attached to it.")}
             {outcome && d.status === "approved" && (
               <>
-                {action("completed", "Record completed", "Record completion only after the appointment has ended. Resolve pending replacement requests first.")}
-                {action("no_show", "Record no-show", "Record attendance accurately. The server will reject this action before the appointment starts.")}
+                {action("completed", "Mark completed", "Confirm this visit was completed. This status will appear in the patient portal.", !d.canComplete)}
+                {action("no_show", "Patient did not attend", "Confirm the patient did not attend. This status will appear in the patient portal.", !d.canRecordNoShow)}
               </>
             )}
           </div>
@@ -152,6 +154,17 @@ function Editor({ data: d, reload, saved }) {
           </button>
         </section>
       )}
+
+      {can("patient_notes", d.locationId, d.providerId) && <section className="staff-panel staff-shared-notes"><p className="staff-eyebrow">Shared with the patient</p><h2>Appointment notes for the patient</h2><p>These notes appear in the linked patient portal. Keep private administrative comments in the separate private notes field.</p>
+        {["approved","completed","no_show"].includes(d.status) && <form onSubmit={event=>{
+          event.preventDefault();
+          show("Publish appointment note",async()=>{
+            const result=await post("/requests/"+d.reference+"/patient-notes",{text:patientNote.trim(),expectedVersion:d.version});
+            saved(result);
+          },<><p>The patient will be able to read this note in their portal. Its text will not be included in email.</p><blockquote className="staff-note-preview">{patientNote}</blockquote></>);
+        }}><label htmlFor="patient-appointment-note">Message or follow-up instructions for the patient<textarea id="patient-appointment-note" rows={5} required maxLength={3000} value={patientNote} onChange={event=>setPatientNote(event.target.value)} /></label><p className="staff-help">{patientNote.length}/3000 characters. Published notes are retained with the appointment.</p><button disabled={!patientNote.trim()}>Publish note to patient portal</button></form>}
+        {(d.patientNotes || []).length ? <div className="staff-shared-note-list">{d.patientNotes.map((note,index)=><article key={index}><p className="staff-help">{note.author} · {dateTime(note.createdAt,zone)}</p><p className="staff-note-text">{note.text}</p></article>)}</div> : <p className="staff-help">No patient-visible notes have been published.</p>}
+      </section>}
 
       <section className="staff-panel">
         <h2>Alternate-time suggestions</h2>
@@ -218,7 +231,7 @@ function Editor({ data: d, reload, saved }) {
             <p>Status: {proposal.status}</p>
 
             {proposal.replacementReference && (
-              <Link to={recordUrl(proposal.replacementReference)}>
+              <Link to={recordUrl(proposal.replacementReference, basePath)}>
                 Open replacement appointment
               </Link>
             )}

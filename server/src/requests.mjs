@@ -471,10 +471,25 @@ export async function decideRequest(
   });
 }
 
-// Retained for compatibility with the existing worker.
-// Appointment reservations do NOT expire automatically.
+// The provider lock serializes automatic expiry with approvals and rescheduling.
 export async function expireHolds() {
-  await query(
-    "DELETE FROM rate_buckets WHERE expires_at < UTC_TIMESTAMP(3)"
+  const candidates = await query(
+    "SELECT id,provider_id FROM appointment_requests WHERE status='pending' AND starts_at<=UTC_TIMESTAMP(3) ORDER BY starts_at,id LIMIT 100"
   );
+  let expired = 0;
+  for (const candidate of candidates) {
+    expired += await transaction(async connection => {
+      await query("SELECT id FROM providers WHERE id=? FOR UPDATE", [candidate.provider_id], connection);
+      const [row] = await query("SELECT * FROM appointment_requests WHERE id=? FOR UPDATE", [candidate.id], connection);
+      const now = await databaseNow(connection);
+      if (!row || row.status !== "pending" || row.starts_at.getTime() > now.toMillis()) return 0;
+      await query("UPDATE appointment_requests SET status='expired',expires_at=NULL,version=version+1 WHERE id=?", [row.id], connection);
+      await applyRescheduleDecision(connection, row, "expired", "system:appointment-expiry");
+      await audit(connection, row.id, "system:appointment-expiry", "request.expired", {from:"pending",to:"expired",version:row.version+1});
+      await enqueueNotifications(connection, row.id, "expired", decrypt(row.contact_enc).email);
+      return 1;
+    });
+  }
+  await query("DELETE FROM rate_buckets WHERE expires_at < UTC_TIMESTAMP(3)");
+  return expired;
 }

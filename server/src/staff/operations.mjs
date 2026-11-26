@@ -49,7 +49,7 @@ function future(row, now) {
 }
 
 const columns = `
-  r.id AS reference,r.status,r.starts_at AS startsAt,
+  r.id AS reference,r.contact_enc,r.status,r.starts_at AS startsAt,
   r.ends_at AS endsAt,r.location_id AS locationId,
   r.provider_id AS providerId,l.name AS location,
   p.name AS provider,t.name AS appointmentType`;
@@ -60,11 +60,16 @@ const joins = `
   JOIN providers p ON p.id=r.provider_id
   JOIN appointment_types t ON t.id=r.type_id`;
 
-const rowView = row => ({
-  ...row,
-  startsAt: iso(row.startsAt),
-  endsAt: iso(row.endsAt)
-});
+const rowView = row => {
+  const { contact_enc, ...safe } = row;
+  const contact = contact_enc ? decrypt(contact_enc) : {};
+  return {
+    ...safe,
+    patient: {name:contact.name || "", email:contact.email || "", phone:contact.phone || "", reason:contact.reason || ""},
+    startsAt: iso(row.startsAt),
+    endsAt: iso(row.endsAt)
+  };
+};
 
 export function mountOperations({ add, need, scoped, scopeSQL }) {
   async function owner(c, requestId) {
@@ -102,6 +107,8 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
   }
 
   async function patient(c, ctx, id, permission = "patients") {
+    need(ctx, permission);
+    const fullAccess = ctx.grants.some(g => g.role === "administrator");
     const scope = scopeSQL(ctx, permission);
 
     const [relationship] = await query(
@@ -112,7 +119,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       [id, ...scope.params], c
     );
 
-    if (!relationship) fail("NOT_FOUND", "Patient unavailable.", 404);
+    if (!relationship && !fullAccess) fail("NOT_FOUND", "Patient unavailable.", 404);
 
     const [account] = await query(
       `SELECT id,profile_enc FROM patient_accounts
@@ -124,7 +131,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
     if (!account) fail("NOT_FOUND", "Patient unavailable.", 404);
 
     await audit(
-      c, relationship.id, ctx.subject,
+      c, relationship?.id || null, ctx.subject,
       permission === "medical"
         ? "patient.medical.viewed"
         : "patient.summary.viewed"
@@ -145,7 +152,8 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       reference: account.id,
       displayName: profile.displayName || "",
       email: profile.email,
-      phone: details.phone || ""
+      phone: details.phone || "",
+      profile: { ...profile, ...details }
     };
   }
 
@@ -183,7 +191,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
 
   add("get", "/requests", async (req, ctx, c) => {
     const q = z.object({
-      from: z.string(), to: z.string(),
+      from: z.string().optional(), to: z.string().optional(),
       status: z.string().optional(),
       locationId: queryId.optional(),
       providerId: queryId.optional(),
@@ -191,24 +199,20 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       offset: z.coerce.number().int().min(0).max(10000).default(0)
     }).strict().parse(req.query);
 
-    const from = DateTime.fromISO(q.from, { zone: config.zone }).startOf("day");
-    const to = DateTime.fromISO(q.to, { zone: config.zone }).startOf("day");
-
-    if (
-      !from.isValid || !to.isValid ||
-      from.toISODate() !== q.from || to.toISODate() !== q.to ||
-      to < from || to.diff(from, "days").days > 92
-    ) fail("DATE_RANGE", "Choose at most 93 inclusive clinic-local days.", 400);
-
     const scope = scopeSQL(ctx, "read");
-    const clauses = [
-      `(${scope.sql})`, "r.starts_at>=?", "r.starts_at<?"
-    ];
-    const params = [
-      ...scope.params,
-      from.toUTC().toJSDate(),
-      to.plus({ days: 1 }).toUTC().toJSDate()
-    ];
+    const clauses = [`(${scope.sql})`];
+    const params = [...scope.params];
+    if (q.from || q.to) {
+      const from = DateTime.fromISO(q.from || "", { zone: config.zone }).startOf("day");
+      const to = DateTime.fromISO(q.to || "", { zone: config.zone }).startOf("day");
+      if (!q.from || !q.to || !from.isValid || !to.isValid ||
+          from.toISODate() !== q.from || to.toISODate() !== q.to ||
+          to < from || to.diff(from, "days").days > 92) {
+        fail("DATE_RANGE", "Choose both dates, at most 93 inclusive clinic-local days.", 400);
+      }
+      clauses.push("r.starts_at>=?", "r.starts_at<?");
+      params.push(from.toUTC().toJSDate(), to.plus({ days: 1 }).toUTC().toJSDate());
+    }
 
     for (const [key, column] of [
       ["locationId", "location_id"], ["providerId", "provider_id"]
@@ -260,6 +264,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
 
     return {
       items: rows.slice(0, 50).map(rowView), counts,
+      total: q.status ? q.status.split(",").reduce((sum,status)=>sum+(counts[status] || 0),0) : Object.values(counts).reduce((sum,count)=>sum+count,0),
       nextOffset: rows.length > 50 && q.offset < 10000 ? q.offset + 50 : null,
       clinicTimeZone: config.zone
     };
@@ -268,6 +273,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
   add("get", "/requests/:ref", async (req, ctx, c) => {
     const row = await scoped(req.params.ref, ctx, c);
     const contact = decrypt(row.contact_enc);
+    const now = await databaseNow(c);
 
     const notes = await query(
       `SELECT n.note_enc,COALESCE(u.display_name,'Recorded operator') AS actor,
@@ -299,9 +305,13 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
     );
 
     await audit(c, row.id, ctx.subject, "request.viewed");
+    const reschedule = await getRescheduleContext(row.id,c);
 
     return {
       reference: row.id, status: row.status, version: row.version,
+      canComplete: !reschedule.pendingReplacementReference && row.status === "approved" && row.ends_at.getTime() <= now.toMillis(),
+      canRecordNoShow: !reschedule.pendingReplacementReference && row.status === "approved" && row.starts_at.getTime() <= now.toMillis(),
+      patientNotes: (await query("SELECT n.note_enc,n.created_at AS createdAt,COALESCE(u.display_name,'Care team') AS author FROM appointment_patient_notes n LEFT JOIN staff_users u ON u.subject=n.author WHERE n.request_id=? ORDER BY n.created_at DESC,n.id DESC LIMIT 100", [row.id], c)).map(n=>({text:decrypt(n.note_enc).text,author:n.author,createdAt:iso(n.createdAt)})),
       startsAt: iso(row.starts_at), endsAt: iso(row.ends_at),
       locationId: row.location_id, providerId: row.provider_id,
       typeId: row.type_id, location: row.location,
@@ -311,7 +321,9 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
         phone: contact.phone || "", reason: contact.reason || ""
       },
       patientReference: await owner(c, row.id),
-      reschedule: await getRescheduleContext(row.id, c),
+      reschedule,
+      reviewInvitation: (await query("SELECT status,sent_at AS sentAt,created_at AS queuedAt FROM communications_outbox WHERE dedup_key=?", [digest("staff-message:review-request:" + row.id)], c))[0] || null,
+      notifications: ctx.grants.some(g => g.role === "administrator") ? await query("SELECT event_type AS event,recipient_type AS recipient,status,sent_at AS sentAt FROM notification_outbox WHERE request_id=? ORDER BY next_attempt_at DESC LIMIT 50", [row.id], c) : [],
       notes: notes.map(n => ({
         text: decrypt(n.note_enc).text,
         actor: n.actor, createdAt: iso(n.createdAt)
@@ -320,6 +332,39 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
       proposals: proposals.map(p => ({ ...p, startsAt: iso(p.startsAt) })),
       clinicTimeZone: config.zone
     };
+  });
+
+  add("post", "/requests/:ref/patient-notes", async (req, ctx, c) => {
+    const body = z.object({text:z.string().trim().min(1).max(3000),expectedVersion:version}).strict().parse(req.body);
+    const row = await scoped(req.params.ref, ctx, c, "patient_notes", true);
+    current(row, body.expectedVersion);
+    if (!["approved","completed","no_show"].includes(row.status)) fail("NOTE_UNAVAILABLE", "Patient notes can be added to approved, completed, or missed appointments.", 400);
+    await query("INSERT INTO appointment_patient_notes VALUES(?,?,?,?,UTC_TIMESTAMP(3))", [newId(),row.id,ctx.subject,encrypt({text:body.text})], c);
+    await query("UPDATE appointment_requests SET version=version+1 WHERE id=?", [row.id], c);
+    await audit(c,row.id,ctx.subject,"request.patient_note.added",{version:row.version+1});
+    await enqueueNotifications(c,row.id,"note_added",decrypt(row.contact_enc).email);
+    return {message:"Note published to the patient portal. An email update is queued."};
+  });
+
+  add("post", "/requests/:ref/review-request", async (req, ctx, c) => {
+    z.object({}).strict().parse(req.body);
+    const row = await scoped(req.params.ref, ctx, c, "review_invite", true);
+    const now = await databaseNow(c);
+    if (!(row.status === "completed" || (row.status === "approved" && row.ends_at.getTime() <= now.toMillis()))) {
+      fail("VISIT_REQUIRED", "Review requests are available after a completed visit.", 400);
+    }
+    const key = "review-request:" + row.id;
+    const [existing] = await query("SELECT status FROM communications_outbox WHERE dedup_key=?", [digest("staff-message:" + key)], c);
+    if (existing) return {message:"A review request has already been queued for this appointment."};
+    const content = emailContent("How was your experience?", [
+      "Thank you for visiting the practice. If you would like to share your experience, you can submit a review using the link below.",
+      "We welcome honest feedback, whether positive or negative. Reviewing is optional and does not affect your care.",
+      "Please leave out medical details and other people's private information. Reviews are checked before publication.",
+      config.origin + "/reviews#share-review"
+    ]);
+    await queue(c, key, {to:decrypt(row.contact_enc).email, subject:content.subject, text:content.text});
+    await audit(c, row.id, ctx.subject, "review.invitation.queued");
+    return {message:"Review request queued for email delivery."};
   });
 
   add("post", "/requests/:ref/action", async (req, ctx, c) => {
@@ -566,6 +611,7 @@ export function mountOperations({ add, need, scoped, scopeSQL }) {
   });
 
   add("get", "/patients", async (req, ctx, c) => {
+    need(ctx, "patients");
     const { q } = z.object({
       q: z.string().trim().min(1).max(254)
     }).strict().parse(req.query);

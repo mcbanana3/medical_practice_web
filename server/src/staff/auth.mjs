@@ -14,15 +14,8 @@ import { S } from "./local-settings.mjs";
 
 export { S };
 
-const operational = [
-  "read", "decide", "patients", "availability", "link", "outcome", "reviews_read"
-];
-export const PERMS = Object.freeze({
-  scheduler: Object.freeze([...operational]),
-  clinician: Object.freeze([...operational, "medical"]),
-  administrator: Object.freeze([...operational, "audit", "access", "settings"]),
-  auditor: Object.freeze(["audit"])
-});
+export { staffPermissions as PERMS } from "../../../shared/staff-permissions.js";
+import { staffPermissions as PERMS } from "../../../shared/staff-permissions.js";
 
 export function can(ctx, permission, locationId, providerId) {
   const anyPair = locationId === undefined && providerId === undefined;

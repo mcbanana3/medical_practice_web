@@ -51,10 +51,15 @@ test("scheduling permission requires the exact location/provider pair", () => {
   );
 });
 
-test("administrative access does not automatically grant medical access", () => {
+test("administrator has full access and staff are restricted", () => {
   assert.equal(can(context("administrator"), "access", 101, 202), true);
-  assert.equal(can(context("administrator"), "medical", 101, 202), false);
-  assert.equal(can(context("clinician"), "medical", 101, 202), true);
+  assert.equal(can(context("administrator"), "medical", 101, 202), true);
+  assert.equal(can(context("clinician"), "medical", 101, 202), false);
+  for (const role of ["scheduler", "clinician"]) {
+    for (const permission of ["read","decide","reviews_moderate","review_invite","outcome","patient_notes"]) assert.equal(can(context(role),permission,101,202),true);
+    for (const permission of ["patients","medical","access","audit","settings","availability","link"]) assert.equal(can(context(role),permission,101,202),false);
+  }
+  for (const permission of ["patients","medical","access","audit","settings","availability","link","outcome","reviews_moderate","review_invite"]) assert.equal(can(context("administrator"),permission,101,202),true);
 });
 
 test("auditors cannot read appointments or patient profiles", () => {

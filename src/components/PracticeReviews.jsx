@@ -177,12 +177,12 @@ export function ReviewForm() {
 
   return (
     <div className="live-reviews">
-      <section className="review-form-panel reviews-live-form">
+      <section id="share-review" className="review-form-panel reviews-live-form">
         <p className="eyebrow">Share feedback</p>
         <h2>Your experience, in your words.</h2>
         <p>
           No account is required. Your submission stays private until an
-          administrator approves it. Positive and negative feedback are welcome.
+          practice approves it. Positive and negative feedback are welcome.
         </p>
         <p className="help">
           Do not include medical records, diagnoses, contact details, or information

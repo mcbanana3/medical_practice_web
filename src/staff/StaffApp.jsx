@@ -1,3 +1,6 @@
+import { workspaceHome } from "../../shared/staff-permissions.js";
+import { Dashboard, PatientDirectory, PracticeDetails } from "./Dashboard.jsx";
+import WorkspaceShell from "./WorkspaceShell.jsx";
 import ReviewModeration from "./ReviewModeration.jsx";
 import {
   LocalAuthPage, LocalAccount, LocalAccess, isLocalAuthPath
@@ -6,173 +9,29 @@ import {
     useCallback, useEffect, useRef, useState
 } from "react";
 import {
-    Link, NavLink, Navigate, Route, Routes,
+    Link, Navigate, Route, Routes,
     useLocation
 } from "react-router-dom";
 
 import { practice } from "../content.js";
-import { api, post, params, loginUrl, setStaffCsrf } from "./client.js";
+import { api, post, params, setStaffCsrf } from "./client.js";
 import {
     StaffContext, useStaff, permissions, useResource,
-    Resource, Problem, Confirm, PairSelect,
-    pairKey, dateTime, clinicDate, AppointmentTable, Value
+    Resource, Problem, Confirm,
+    dateTime, clinicDate, Value
 } from "./ui.jsx";
 import { Queue, Availability } from "./Schedules.jsx";
 import RequestDetail from "./RequestDetail.jsx";
 import "./staff.css";
+import "./workspace-design.css";
 
 function Gate({ permission, children }) {
-    const { can } = useStaff();
+    const { can, basePath } = useStaff();
     return can(permission) ? children : (
         <section>
             <h1>Access unavailable</h1>
             <p>Your assigned resource grants do not permit this page.</p>
-            <Link to="/staff/account">Staff account</Link>
-        </section>
-    );
-}
-
-function Patients() {
-    const { search: locationSearch } = useLocation();
-    const initial = new URLSearchParams(locationSearch).get("q") || "";
-
-    const [input, setInput] = useState(initial);
-    const [search, setSearch] = useState(initial);
-    const [selected, setSelected] = useState("");
-    const [error, setError] = useState(null);
-
-    const state = useResource(
-        search ? "/patients?" + params({ q: search }) : null
-    );
-
-    useEffect(() => {
-        setInput(initial);
-        setSearch(initial);
-        setSelected("");
-    }, [initial]);
-
-    return (
-        <section>
-            <p className="staff-eyebrow">Purpose-limited access</p>
-            <h1>Patient lookup</h1>
-            <p>
-                Enter an exact registered email or full patient reference.
-                No patient directory is loaded.
-            </p>
-
-            <form className="staff-actions" onSubmit={event => {
-                event.preventDefault();
-                setSelected("");
-                setError(null);
-                const value = input.trim();
-
-                if (
-                    !/^[a-f0-9]{32}$/.test(value) &&
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-                ) {
-                    setError(new Error("Enter the full patient reference or exact registered email."));
-                    return;
-                }
-
-                if (value === search) state.reload();
-                else setSearch(value);
-            }}>
-                <label>
-                    Exact account email / patient reference
-                    <input
-                        autoComplete="off" required maxLength={254}
-                        value={input} onChange={e => setInput(e.target.value)}
-                    />
-                </label>
-                <button>Find authorized patient</button>
-                <button type="button" onClick={() => {
-                    setInput(""); setSearch(""); setSelected(""); setError(null);
-                }}>Clear</button>
-            </form>
-
-            <Problem error={error} />
-
-            <Resource state={state}>{data => (
-                <>
-                    {!data.items.length && (
-                        <div className="staff-empty">
-                            No exact match is available within your authorized scope.
-                        </div>
-                    )}
-                    {data.items.map(item => (
-                        <article className="staff-panel" key={item.reference}>
-                            <h2>{item.displayName || "Patient account"}</h2>
-                            <p className="staff-reference">{item.reference}</p>
-                            <button onClick={() => setSelected(item.reference)}>
-                                Open limited summary
-                            </button>
-                        </article>
-                    ))}
-                </>
-            )}</Resource>
-
-            {selected && <PatientSummary key={selected} reference={selected} />}
-        </section>
-    );
-}
-
-function PatientSummary({ reference }) {
-    const state = useResource("/patients/" + reference);
-    return (
-        <Resource state={state}>
-            {data => <PatientRecord data={data} />}
-        </Resource>
-    );
-}
-
-function PatientRecord({ data }) {
-    const { can } = useStaff();
-    const [showMedical, setShowMedical] = useState(false);
-
-    const medical = useResource(showMedical
-        ? "/patients/" + data.patient.reference + "/medical"
-        : null);
-
-    const medicalAllowed = data.appointments.some(item =>
-        can("medical", item.locationId, item.providerId)
-    );
-
-    return (
-        <section className="staff-panel">
-            <h2>{data.patient.displayName || "Patient summary"}</h2>
-            <Value value={{
-                Reference: data.patient.reference,
-                Email: data.patient.email,
-                Phone: data.patient.phone
-            }} />
-
-            <p className="staff-help">
-                This is a limited summary, not a complete medical record.
-                Appointment history below contains at most the latest 25 authorized records.
-            </p>
-
-            <AppointmentTable
-                items={data.appointments}
-                zone={data.clinicTimeZone}
-            />
-
-            {medicalAllowed && (
-                <section>
-                    <h3>Patient-reported medical information</h3>
-                    <p>
-                        Load only when necessary for your assigned work.
-                        Administrative access alone does not grant this permission.
-                    </p>
-                    <button onClick={() => setShowMedical(value => !value)}>
-                        {showMedical ? "Hide medical information" : "Load authorized medical information"}
-                    </button>
-                    {showMedical && (
-                        <Resource state={medical}>
-                            {result => <Value value={result.details} />}
-                        </Resource>
-                    )}
-                </section>
-            )}
+            <Link to={basePath + "/account"}>Staff account</Link>
         </section>
     );
 }
@@ -259,7 +118,7 @@ function Audit() {
 }
 
 function Account() {
-    const { session, options, endSession, askLogout } = useStaff();
+    const { session, options, endSession, askLogout, basePath } = useStaff();
     const state = useResource("/sessions");
     const [target, setTarget] = useState(null);
     const [message, setMessage] = useState("");
@@ -279,7 +138,7 @@ function Account() {
             </ul>
 
             <div className="staff-actions">
-                <a href={loginUrl + "?fresh=1"}>Fresh staff authentication</a>
+                <a href={basePath + "/account?fresh=1"}>Fresh staff authentication</a>
                 <button onClick={askLogout}>Sign out of staff</button>
             </div>
 
@@ -330,54 +189,33 @@ function Account() {
     );
 }
 
-function StaffRoutes() {
-    const { can } = useStaff();
-
-    return (
-        <Routes>
-            <Route path="/staff" element={
-                can("read")
-                    ? <Queue key="queue" />
-                    : <Navigate replace to={can("audit") ? "/staff/audit" : "/staff/account"} />
-            } />
-            <Route path="/staff/calendar" element={
-                <Gate permission="read"><Queue key="calendar" calendar /></Gate>
-            } />
-            <Route path="/staff/requests/:ref" element={
-                <Gate permission="read"><RequestDetail /></Gate>
-            } />
-            <Route path="/staff/patients" element={
-                <Gate permission="patients"><Patients /></Gate>
-            } />
-            <Route path="/staff/availability" element={
-                <Gate permission="availability"><Availability /></Gate>
-            } />
-            <Route path="/staff/audit" element={
-                <Gate permission="audit"><Audit /></Gate>
-            } />
-            <Route path="/staff/access" element={
-                <Gate permission="access"><LocalAccess /></Gate>
-            } />
-            <Route path="/staff/reviews" element={<Gate permission="access"><ReviewModeration /></Gate>} />
-            <Route path="/staff/account" element={<><Account /><LocalAccount /></>} />
-            <Route path="/staff/login" element={<Navigate replace to="/staff" />} />
-            <Route path="*" element={
-                <section>
-                    <h1>Private page not found</h1>
-                    <Link to="/staff">Return to staff workspace</Link>
-                </section>
-            } />
-        </Routes>
-    );
+export function StaffRoutes() {
+    const { basePath, can } = useStaff();
+    return <Routes>
+      <Route path={basePath} element={<Dashboard />} />
+      <Route path={basePath + "/appointments"} element={<Gate permission="read"><Queue /></Gate>} />
+      <Route path={basePath + "/calendar"} element={<Gate permission="read"><Queue calendar /></Gate>} />
+      <Route path={basePath + "/requests/:ref"} element={<Gate permission="read"><RequestDetail /></Gate>} />
+      <Route path={basePath + "/patients"} element={<Gate permission="access"><PatientDirectory /></Gate>} />
+      <Route path={basePath + "/availability"} element={<Gate permission="availability"><Availability /></Gate>} />
+      <Route path={basePath + "/practice"} element={<Gate permission="settings"><PracticeDetails /></Gate>} />
+      <Route path={basePath + "/audit"} element={<Gate permission="audit"><Audit /></Gate>} />
+      <Route path={basePath + "/access"} element={<Gate permission="access"><LocalAccess /></Gate>} />
+      <Route path={basePath + "/reviews"} element={<Gate permission="reviews_moderate"><ReviewModeration /></Gate>} />
+      <Route path={basePath + "/account"} element={<><Account /><LocalAccount /></>} />
+      <Route path="*" element={<section><h1>Page unavailable</h1><p>Your account does not have access to this page.</p><Link to={basePath}>Return to your dashboard</Link></section>} />
+    </Routes>;
 }
 
 function Workspace({ session, endSession }) {
+    const basePath = workspaceHome(session);
+    const location = useLocation();
     const state = useResource("/options");
     const [logout, setLogout] = useState(false);
 
     const can = (permission, locationId, providerId) =>
         session.grants.some(g =>
-            permissions[g.role]?.includes(permission) &&
+            Object.hasOwn(permissions, g.role) && permissions[g.role].includes(permission) &&
             (
                 locationId === undefined && providerId === undefined ||
                 Number(g.locationId) === Number(locationId) &&
@@ -388,45 +226,23 @@ function Workspace({ session, endSession }) {
     return (
         <Resource state={state}>{options => (
             <StaffContext.Provider value={{
-                session, options, can, endSession,
+                session, options, can, endSession, basePath,
                 askLogout: () => setLogout(true),
                 pairsFor: permission => options.pairs.filter(p =>
                     can(permission, p.locationId, p.providerId)
                 )
             }}>
-                <header className="staff-header">
-                    <div>
-                        <Link className="staff-brand" to="/staff">
-                            {practice.name || "Practice"} <span>Staff</span>
-                        </Link>
-                        <p>{session.name} · Private workspace</p>
-                    </div>
-                    <button onClick={() => setLogout(true)}>Sign out</button>
-                    <nav aria-label="Private staff navigation">
-                        {[
-                            ["read", "/staff", "Queue"],
-                            ["read", "/staff/calendar", "Calendar"],
-                            ["patients", "/staff/patients", "Patients"],
-                            ["availability", "/staff/availability", "Availability"],
-                            ["audit", "/staff/audit", "Audit"],
-                            ["access", "/staff/access", "Access"],
-                            ["access", "/staff/reviews", "Reviews"],
-            [null, "/staff/account", "Account"]
-                        ].filter(([permission]) => !permission || can(permission))
-                            .map(([, path, label]) => (
-                                <NavLink key={path} to={path} end={path === "/staff"}>
-                                    {label}
-                                </NavLink>
-                            ))}
-                    </nav>
-                </header>
-
+                <WorkspaceShell onLogout={() => setLogout(true)}>
                 <p className="staff-privacy-hint">
                     Switching away hides private records and may discard unsaved edits.
                     Do not use shared staff identities.
                 </p>
 
-                <StaffRoutes />
+                {basePath === "/admin" && /^\/staff(?:\/|$)/.test(location.pathname)
+                  ? <Navigate replace to={location.pathname.replace(/^\/staff/, "/admin")} />
+                  : <StaffRoutes />}
+
+                </WorkspaceShell>
 
                 {logout && (
                     <Confirm
@@ -492,7 +308,9 @@ export default function StaffApp() {
             setSession(data);
             setLoading(false);
             setShield(false);
+            return data;
         } catch (failure) {
+            if (requestNumber !== sequence.current) return;
             if (failure.status === 401) {
                 endSession();
             } else if (requestNumber === sequence.current) {
@@ -565,7 +383,7 @@ export default function StaffApp() {
         meta.name = "robots";
         meta.content = "noindex, nofollow, noarchive";
         document.head.appendChild(meta);
-        document.title = "Private staff workspace";
+        document.title = "Private practice workspace";
 
         return () => {
             meta.remove();
@@ -580,13 +398,17 @@ export default function StaffApp() {
 
   let content;
 
-    if (isLocalAuthPath(location.pathname)) {
+    if (location.pathname === "/admin/login") {
+    content = <Navigate replace to="/staff/login" />;
+  } else if (isLocalAuthPath(location.pathname)) {
     content = <LocalAuthPage
       key={location.pathname}
-      signedIn={Boolean(session?.configured)}
+      signedIn={Boolean(session?.configured) && !shield && !error}
+      home={workspaceHome(session)}
       onLogin={async () => {
         setLoading(true);
-        await checkSession(false, true);
+        const verified = await checkSession(false, true);
+        if (!verified?.configured) throw new Error("Your sign-in could not be verified. Please retry.");
       }}
     />;
   } else if (loading) {
@@ -615,7 +437,7 @@ export default function StaffApp() {
     }
 
     return (
-        <div className="staff">
+        <div className={"staff" + (session?.configured && !isLocalAuthPath(location.pathname) && !error && !shield ? " staff--workspace" : "")}>
             <a className="staff-skip" href="#staff-main">Skip to private content</a>
             <main id="staff-main" className="staff-main" tabIndex={-1} ref={main}>
                 {content}

@@ -509,3 +509,5 @@ main:focus, .booking-main > h2:focus { outline: none; }
   .container { width: 100%; }
   .section, .page-intro { padding-block: 24px; }
 }
+/* Route-focus targets are containers, not interactive controls. */
+main[tabindex="-1"]:focus, main[tabindex="-1"]:focus-visible { outline:none; box-shadow:none; }
